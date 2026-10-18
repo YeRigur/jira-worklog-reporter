@@ -1,0 +1,12 @@
+{
+  "name": "jira-worklogs-export",
+  "version": "0.9.6",
+  "private": true,
+  "description": "Jira CSV (all fields) → the SimpleLife worklogs Excel, in the browser.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test 'tests/**/*.test.js'",
+    "serve": "python3 tools/serve.py 8000"
+  },
+  "engines": { "node": ">=22" }
+}

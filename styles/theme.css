@@ -1,0 +1,123 @@
+/* The look: Microsoft 365 / Fluent, in Excel green since the result is an
+   Excel file. Green app bar, a pivot of sections under it, Segoe UI, soft
+   elevation, 4px corners. base.css builds everything from these tokens. */
+:root {
+  --font: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, Menlo, monospace;
+  --fs: 14px;
+
+  --text: #242424;
+  --text-2: #424242;
+  --text-3: #616161;
+  --text-4: #9E9E9E;
+  --canvas: #F5F5F5;
+  --surface: #FFFFFF;
+  --surface-2: #FAFAFA;
+  --surface-hover: #F5F5F5;
+  --panel-bg: #FFFFFF;
+  --line: #E0E0E0;
+  --line-strong: #D1D1D1;
+  --grid-line: #E6E6E6;
+  --th-bg: #F3F3F3;
+  --th-text: #242424;
+
+  --primary: #107C41;
+  --primary-hover: #0C6935;
+  --primary-active: #0A5A2D;
+  --primary-soft: #EDF6F0;
+  --primary-line: #BFDFCB;
+  --on-primary: #FFFFFF;
+  --focus: #107C41;
+  --focus-soft: rgba(16, 124, 65, 0.18);
+  --focus-w: 2px;
+  --link: #0F6CBD;
+  --link-hover: #115EA3;
+  --chip-bg: #FFFFFF;
+  --chip-line: #D1D1D1;
+  --chip-text: #242424;
+  --chip-hover: #F5F5F5;
+
+  --ok: #107C10;
+  --ok-soft: #F1FAF1;
+  --ok-line: #9FD89F;
+  --ok-text: #0E700E;
+  --warn: #F7630C;
+  --warn-soft: #FFF9F5;
+  --warn-line: #FDCFB4;
+  --warn-text: #BC4B09;
+  --warn-row: #FFFCFA;
+  --danger: #C50F1F;
+  --danger-soft: #FDF3F4;
+  --danger-line: #EEACB2;
+  --danger-text: #B10E1C;
+  --danger-row: #FFFAFA;
+  --disabled-bg: #F0F0F0;
+  --disabled-text: #BDBDBD;
+
+  --input-bg: #FFFFFF;
+  --input-line: #D1D1D1;
+  --input-line-hover: #C7C7C7;
+  --drop-line: #C7C7C7;
+  --drop-bg: #FFFFFF;
+  --code-bg: #FAFAFA;
+  --num-bg: #107C41;
+  --num-text: #FFFFFF;
+  --stat-num: #107C41;
+  --stat-case: none;
+  --stat-track: 0;
+  --stat-gap: 12px;
+  --row-mark: 3px;
+
+  --radius-s: 4px;
+  --radius: 4px;
+  --radius-l: 8px;
+  --radius-btn: 4px;
+  --radius-chip: 4px;
+  --radius-icon: 8px;
+  --radius-num: 4px;
+  --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
+  --shadow-btn: none;
+  --btn-h: 32px;
+  --btn-h-l: 40px;
+  --btn-pad: 14px;
+  --btn-weight: 600;
+  --control-h: 32px;
+  --title-fs: 20px;
+
+  --gutter: clamp(16px, 3vw, 40px);
+  --card-gap: 20px;
+  --card-pad: 24px;
+  --card-line: 0;
+
+  --header-h: 48px;
+  --header-bg: #107C41;
+  --header-text: #FFFFFF;
+  --header-line: 0;
+  --logo-bg: rgba(255, 255, 255, 0.16);
+  --logo-text: #FFFFFF;
+  --nav-bg: #FFFFFF;
+  --nav-line: #E0E0E0;
+  --nav-h: 44px;
+  --nav-text: #424242;
+  --nav-text-on: #242424;
+  --nav-hover: #F5F5F5;
+  --nav-mark: #107C41;
+}
+
+/* Fluent inputs: a bottom accent line, the selected pivot with a rounded bar. */
+:root .tcard input[type="text"],
+:root .tcard input[type="date"],
+:root .tcard select { border-bottom-color: #616161; }
+:root .tcard input:focus,
+:root .tcard select:focus,
+:root .tcard textarea:focus { box-shadow: inset 0 -2px 0 var(--primary); border-color: var(--line-strong); }
+:root .tnav__item { border-bottom: 0; position: relative; }
+:root .tnav__item.is-on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 3px; border-radius: 2px; background: var(--nav-mark);
+}
+:root .tnav__item.is-on .icon { color: var(--primary); }
+:root .tstat { border: 0; box-shadow: var(--shadow-card); }
+:root .tlist, :root .tmain__file { border: 0; box-shadow: var(--shadow-card); }
+:root .tcard--main { background: transparent; box-shadow: none; padding: 0; }
+:root .tplus { background: var(--primary); color: #fff; box-shadow: none; }
+:root .tbrand__title { font-weight: 600; }
