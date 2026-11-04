@@ -8,6 +8,8 @@ import { plural } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
 
 const SETTINGS_KEY = 'simplelife-worklogs-settings';
+const PICKED_KEY = 'simplelife-worklogs-picked';
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function createSettingsStore(app) {
   const { state } = app;
@@ -112,10 +114,38 @@ export function createSettingsStore(app) {
   const hasSettings = () => Boolean(state.settings.roster.length || Object.keys(state.settings.teams).length
     || Object.keys(state.settings.people).length || Object.keys(state.settings.projectGroups || {}).length);
 
+  // Jira mode: who is ticked. Nobody ticked yet means the whole roster.
+  const pickedEmails = () => (state.picked === null ? [...state.settings.roster] : state.settings.roster.filter((e) => state.picked.includes(e)));
+  const savePicked = () => { try { app.storage.setItem(PICKED_KEY, JSON.stringify(state.picked)); } catch { /* not kept */ } };
+  const pickPeople = (emails) => { state.picked = [...new Set(emails)]; savePicked(); state.result = null; app.render(); };
+  const addRosterEmail = (raw) => {
+    const email = String(raw || '').trim().toLowerCase();
+    if (!EMAIL.test(email)) return false;
+    if (!state.settings.roster.includes(email)) {
+      state.settings.roster = [...state.settings.roster, email];
+      keepSettings();
+      state.settingsNote = { ok: true, text: `Added ${email}. Save the settings file to pass it on.` };
+    }
+    if (state.picked !== null && !state.picked.includes(email)) { state.picked = [...state.picked, email]; savePicked(); }
+    return true;
+  };
+  // Accounts found through the bridge, kept so the next run doesn't ask again.
+  const rememberAccounts = (map) => {
+    const fresh = Object.entries(map).filter(([email, id]) => state.settings.accounts[email] !== id);
+    if (!fresh.length) return;
+    state.settings.accounts = { ...state.settings.accounts, ...Object.fromEntries(fresh) };
+    keepSettings();
+  };
+
   state.settings = read();
+  try {
+    const kept = JSON.parse(app.storage.getItem(PICKED_KEY) || 'null');
+    state.picked = Array.isArray(kept) ? kept : null;
+  } catch { state.picked = null; }
 
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
-    applySettings, loadSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings
+    applySettings, loadSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings,
+    pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts
   };
 }

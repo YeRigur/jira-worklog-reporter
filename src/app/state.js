@@ -8,6 +8,11 @@ export function createState() {
   return {
     // the CSV
     files: [], dataset: null, error: null, datePattern: '',
+    // where the data comes from: straight from Jira through the bridge, or a CSV
+    source: 'jira',
+    // the roster emails ticked for Jira mode; null means everyone on the roster
+    picked: null,
+    jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [] },
     // the report
     from: range.from, to: range.to, site: '', withSummary: null,
     // months whose JQL was copied, to tick them off ("from|to")

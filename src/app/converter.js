@@ -41,13 +41,13 @@ export function createConverter(app) {
   // The extension's code talks through window globals, so two runs at once would
   // write into each other. Every run waits for the one before it.
   let queue = Promise.resolve();
-  const runOnce = (config, fetch, origin, save) => {
-    const run = () => startRun(config, fetch, origin, save);
+  const runOnce = (config, fetch, origin, save, { progress = save } = {}) => {
+    const run = () => startRun(config, fetch, origin, save, progress);
     queue = queue.then(run, run);
     return queue;
   };
 
-  const startRun = (config, fetch, origin, save) => {
+  const startRun = (config, fetch, origin, save, progress) => {
     installXlsx();
     if (!xlsxOriginal) xlsxOriginal = window.__SIMPLELIFE_XLSX__;
     const made = { sheets: [], filename: '', blob: null };
@@ -62,7 +62,7 @@ export function createConverter(app) {
     return new Promise((resolve) => {
       window.__SIMPLELIFE__ = {
         config: { 'jira-worklogs-export': config },
-        notifyProgress: (id, message) => { if (save) { state.progress = message; app.render(); } },
+        notifyProgress: (id, message) => { if (progress) { state.progress = message; app.render(); } },
         notifyProgressDone: () => {},
         notifySuccess: (id, message) => resolve({ ...made, ok: true, message }),
         notifyError: (id, message) => resolve({ ...made, ok: false, message: rewriteExportMessage(message) })
@@ -90,11 +90,8 @@ export function createConverter(app) {
     state.files.map((f) => `${f.name}:${f.text.length}`), state.from, state.to, siteOf(), withSummary(), state.bindings, state.settingsRev
   ]);
 
-  function ensurePreview() {
-    const sig = signature();
-    if (!state.dataset || !siteOf() || state.busy) return;
-    // One run at a time; when it lands, render() calls back for the latest state.
-    if (state.preview?.signature === sig || state.previewing) return;
+  // Runs one preview build and keeps what it made under its signature.
+  function previewWith(sig, run) {
     state.previewing = sig;
     const keep = (made) => {
       state.previewing = null;
@@ -102,7 +99,15 @@ export function createConverter(app) {
       if (state.previewSheet >= state.preview.sheets.length) state.previewSheet = 0;
       app.render();
     };
-    buildWorkbook(false).then(keep, (e) => keep({ ok: false, message: e.message }));
+    run().then(keep, (e) => keep({ ok: false, message: e.message }));
+  }
+
+  function ensurePreview() {
+    const sig = signature();
+    if (!state.dataset || !siteOf() || state.busy) return;
+    // One run at a time; when it lands, render() calls back for the latest state.
+    if (state.preview?.signature === sig || state.previewing) return;
+    previewWith(sig, () => buildWorkbook(false));
   }
 
   async function download() {
@@ -171,6 +176,7 @@ export function createConverter(app) {
       app.render();
       return;
     }
+    state.source = 'csv';
     state.files = await Promise.all(csv.map(async (f) => ({ name: f.name, ...decodeCsvBytes(new Uint8Array(await f.arrayBuffer())) })));
     parse();
   }
@@ -181,7 +187,7 @@ export function createConverter(app) {
   const startOver = () => {
     Object.assign(state, {
       files: [], dataset: null, error: null, preview: null, result: null,
-      savedSig: '', savedAs: '', page: 'main', emptyOk: false, pickKeys: []
+      savedSig: '', savedAs: '', page: 'main', emptyOk: false, pickKeys: [], source: 'jira'
     });
     app.render();
   };
@@ -193,6 +199,6 @@ export function createConverter(app) {
 
   return {
     siteOf, withSummary, people, filterEmails, keptAuthors, teamJql, signature, ensurePreview,
-    download, parse, load, choose, chooseSettings, startOver, emptyNow, fileNames
+    download, parse, load, choose, chooseSettings, startOver, emptyNow, fileNames, runOnce, previewWith
   };
 }
