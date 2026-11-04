@@ -84,6 +84,7 @@ export function createSettingsStore(app) {
       if (app.inputs) app.inputs.siteInput.value = '';
       Object.assign(state, { preview: null, previewing: null, result: null, savedSig: '', savedAs: '' });
       state.jira = freshJira();
+      state.projectGroup = '';
       if (state.dataset) reloadSiteChoices();
       state.settingsNote = { ok: true, text: `Switched to “${name}”: ${plural(s.roster.length, 'person', 'people')}${s.site ? ` on ${s.site}` : ''}.` };
     } catch (e) {

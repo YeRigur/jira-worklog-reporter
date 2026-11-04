@@ -20,16 +20,24 @@ the page is not allowed to connect to any server.
    with *Add* if they are missing — then save the settings file to pass it on.
    *Separate report* next to a group downloads an Excel with only that group,
    without touching the main one.
-5. **Press Start.** Jira opens in a new tab. The first time, drag the
+5. **Pick a project group** if you want one (step 5, when the settings have
+   project groups): Jira is then asked for those projects only, which is much
+   quicker, and the file is named after the group.
+6. **Press Start.** Jira opens in a new tab. The first time, drag the
    *Worklogs bridge* button to your bookmarks bar (it is under *First time?*).
-   In the Jira tab, click that bookmark. The page then reads the worklogs from
-   Jira through that tab, with your own Jira sign-in.
-6. **Fix what the page asks about**, if anything: people not found in Jira,
+   In the Jira tab, click that bookmark: the Jira page is blurred behind a card
+   that shows how far the export is, and says when the tab can be closed.
+7. **Check the columns.** Each column of the report and the Jira field it comes
+   from; the ones attached in the settings are already filled in. Pick a field
+   or *Leave empty* for the rest, then press **Build Excel** — only then are the
+   worklogs read.
+8. **Fix what the page asks about**, if anything: people not found in Jira,
    projects without a group.
-7. **Click *Download Excel*.** Use *Preview* first if you want to see the rows.
+9. **Click *Download Excel*.** Use *Preview* first if you want to see the rows.
 
 The bookmark only reads from Jira (searches, worklogs, users, the field list)
-and only answers this page. The page itself still connects to nothing. A
+and only answers this page. The page itself still connects to nothing. After an
+update of the page, the bookmark may need dragging again — the page says so. A
 bookmark dragged from one address (say `localhost`) only answers that address,
 so the GitHub Pages page needs its own.
 

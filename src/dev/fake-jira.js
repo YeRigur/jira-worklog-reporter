@@ -20,5 +20,6 @@ export function createFakeJira({ dataset, authors, people, site = dataset.site |
     }
     return emulator(url.toString(), init);
   }
-  return { site, ready: Promise.resolve({ site }), fetch, close() {}, closed: false };
+  const statuses = [];
+  return { site, ready: Promise.resolve({ site }), fetch, status: (s) => statuses.push(s), statuses, close() {}, closed: false };
 }

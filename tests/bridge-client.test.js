@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openBridge, BridgeError } from '../src/app/bridge-client.js';
+import { BRIDGE_VERSION } from '../src/core/bridge.js';
 
 const SITE = 'acme.atlassian.net';
 const ORIGIN = `https://${SITE}`;
@@ -53,18 +54,18 @@ test('it opens the Jira tab and is ready only when that tab says so', async () =
   assert.deepEqual(opened, [[`${ORIGIN}/jira/your-work`, 'jira-worklogs-bridge']]);
   let ready = false;
   bridge.ready.then(() => { ready = true; });
-  fromJira({ type: 'wl-bridge:ready', v: 1, site: SITE }, { origin: 'https://evil.com' });
-  fromJira({ type: 'wl-bridge:ready', v: 1, site: SITE }, { source: {} });
+  fromJira({ type: 'wl-bridge:ready', v: BRIDGE_VERSION, site: SITE }, { origin: 'https://evil.com' });
+  fromJira({ type: 'wl-bridge:ready', v: BRIDGE_VERSION, site: SITE }, { source: {} });
   await tick();
   assert.equal(ready, false);
-  fromJira({ type: 'wl-bridge:ready', v: 1, site: SITE });
+  fromJira({ type: 'wl-bridge:ready', v: BRIDGE_VERSION, site: SITE });
   await tick();
   assert.equal(ready, true);
 });
 
 test('an old bookmark is told to update', async () => {
   const { bridge, fromJira } = setup();
-  fromJira({ type: 'wl-bridge:ready', v: 0, site: SITE });
+  fromJira({ type: 'wl-bridge:ready', v: BRIDGE_VERSION - 1, site: SITE });
   await assert.rejects(bridge.ready, (e) => e.code === 'old-bridge');
 });
 
@@ -119,4 +120,14 @@ test('no answer in 60 seconds is a timeout', async () => {
   const pending = bridge.fetch('/rest/api/3/myself');
   timers.advance(60000);
   await assert.rejects(pending, (e) => e.code === 'timeout');
+});
+
+test('status goes to the Jira tab once it is connected', async () => {
+  const { bridge, win, fromJira } = setup();
+  bridge.status({ text: 'too early' });
+  assert.equal(win.sent.length, 0, 'nothing before the bookmark answered');
+  fromJira({ type: 'wl-bridge:ready', v: BRIDGE_VERSION, site: SITE });
+  await bridge.ready;
+  bridge.status({ text: 'Worklogs: 1/2', pct: 50 });
+  assert.deepEqual(win.sent.at(-1), { data: { type: 'wl-bridge:status', text: 'Worklogs: 1/2', pct: 50 }, target: ORIGIN });
 });

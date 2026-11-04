@@ -1,6 +1,7 @@
 // Jira mode on the start screen: one narrow column of numbered steps, in the
-// order they are done — settings, people, site, period — then Start, with the
-// reason when it can't start yet, then the Excel.
+// order they are done — settings, people, site, period, projects — then Start,
+// with the reason when it can't start yet; then the columns to check, Build
+// Excel, and the Excel.
 import { h, icon, xlsxIcon } from '../dom.js';
 import { plural } from '../../core/format.js';
 import { previousMonth, periodLabel } from '../../core/period.js';
@@ -24,8 +25,10 @@ export function jiraStart(app, { note } = {}) {
     peopleStep(app),
     siteStep(app),
     periodStep(app),
+    projectsStep(app),
     startBlock(app, working),
     statusOf(app),
+    columnsBlock(app),
     resultOf(app),
     h('div', { class: 'tjv__foot' }, bookmarkPanel(app),
       h('button', { class: 'tlinkbtn', onclick: () => { state.source = 'csv'; app.render(); } }, 'Or upload a CSV instead')));
@@ -123,6 +126,67 @@ function periodStep(app) {
     h('div', { class: 'tjv__dates' }, fromInput, h('span', { class: 'tjv__dash', text: '–' }), toInput));
 }
 
+// One project group only, when the settings have groups: Jira is asked for
+// those projects alone.
+function projectsStep(app) {
+  const { state } = app;
+  const groups = state.settings.projectGroups || {};
+  const names = Object.keys(groups);
+  if (!names.length) return null;
+  const select = h('select', {
+    'aria-label': 'Project group',
+    onchange: (e) => { state.projectGroup = e.target.value; state.result = null; app.render(); }
+  },
+  h('option', { value: '', text: 'All projects', selected: !state.projectGroup }),
+  ...names.map((g) => h('option', { value: g, text: `${g} · ${plural(groups[g].length, 'project')}`, selected: state.projectGroup === g })));
+  const keys = state.projectGroup ? groups[state.projectGroup] || [] : [];
+  return step(5, 'Projects', null, select,
+    h('div', { class: 'thelp', text: keys.length ? `Only ${keys.join(', ')} — Jira is asked for these alone, and the file is named after the group.` : 'Every project the people logged time in.' }));
+}
+
+// After Start: each column of the report and the Jira field it comes from.
+// Columns attached in the settings are filled in; the rest can be picked or
+// left empty. Nothing is read from Jira's worklogs until Build Excel.
+function columnsBlock(app) {
+  const { state, link } = app;
+  if (state.jira.phase !== 'mapping') return null;
+  const rows = app.jira.columns();
+  const fields = app.jira.fieldList();
+  const open = rows.filter((r) => r.status === 'missing' || r.status === 'taken');
+  const byHand = rows.filter((r) => r.status === 'bound' || r.status === 'empty');
+  const shown = state.columnsAll ? rows : [...open, ...byHand];
+  // A field feeds one column: the ones taken show whose they are.
+  const usedBy = new Map(rows.filter((r) => (r.status === 'auto' || r.status === 'bound') && r.fieldId).map((r) => [r.fieldId, r.label]));
+  const picker = (r) => h('select', {
+    class: 'tcol__pick', 'aria-label': `Jira field for ${r.label}`,
+    onchange: (e) => app.jira.setBinding(r.key, e.target.value)
+  },
+  open.includes(r) ? h('option', { value: '', text: 'Pick a Jira field…', selected: true, disabled: true }) : null,
+  h('option', { value: '', text: 'Leave empty', selected: r.status === 'empty' }),
+  ...fields.map((f) => {
+    const mine = (r.status === 'auto' || r.status === 'bound') && r.fieldId === f.id;
+    const other = !mine && usedBy.get(f.id);
+    return h('option', { value: f.id, text: other ? `${f.name} — used by ${other}` : f.name, selected: mine, disabled: Boolean(other) });
+  }));
+  const row = (r) => {
+    const tone = open.includes(r) ? 'warn' : 'ok';
+    return h('div', { class: `tcol tcol--${tone}` },
+      icon(tone === 'ok' ? 'check' : 'alert', 14),
+      h('span', { class: 'tcol__label', text: r.label }),
+      r.status === 'computed' ? h('span', { class: 'tcol__from', text: r.source }) : picker(r));
+  };
+  const found = rows.length - open.length;
+  return h('section', { class: 'tjv__cols' },
+    h('div', { class: 'tjv__head' }, icon('columns', 16), h('b', { text: 'Columns' }),
+      h('span', { class: 'tjv__aside' }, h('span', { class: `tperiodbox__sum${open.length ? ' is-warn' : ''}`, text: `${found} of ${rows.length} found` }))),
+    h('div', { class: 'thelp', text: open.length
+      ? `${plural(open.length, 'column')} ${open.length === 1 ? 'has' : 'have'} no field in this Jira — pick one or leave it empty. Your choice is kept for ${app.jira.site()}.`
+      : 'Every column has its Jira field. Change any below, or build the Excel.' }),
+    shown.length ? h('div', { class: 'tcols' }, ...shown.map(row)) : null,
+    link(state.columnsAll ? 'Show only the ones to check' : `Show all ${rows.length} columns`, () => { state.columnsAll = !state.columnsAll; app.render(); }),
+    h('button', { class: 'tdl tjv__go', onclick: app.jira.build }, icon('sheet', 16), 'Build Excel'));
+}
+
 // Why Start is off, or what it will do.
 function reasonOf(app) {
   const { state } = app;
@@ -135,13 +199,18 @@ function reasonOf(app) {
 function startBlock(app, working) {
   const { state } = app;
   const canStart = Boolean(app.jira.site()) && app.pickedEmails().length > 0 && !working;
-  const again = state.jira.phase === 'ready' || state.jira.phase === 'error';
-  // Once the Excel is there, Download is the main button; Start steps back.
+  const { phase } = state.jira;
+  const again = phase === 'ready' || phase === 'error' || phase === 'mapping';
+  // Once the columns or the Excel are up, they hold the main button; Start steps back.
   const done = Boolean(state.preview?.ok && state.preview.signature === app.signature());
-  const reason = working ? (state.progress || state.jira.message || 'Working…') : (done ? '' : reasonOf(app));
+  const aside = done || phase === 'mapping';
+  const reason = working ? (state.progress || state.jira.message || 'Working…')
+    : (phase === 'mapping' ? 'Check the columns below, then build the Excel.' : (done ? '' : reasonOf(app)));
+  const reading = working && state.previewing;
   return h('div', { class: 'tjv__start' },
-    h('button', { class: `${done ? 'tbtn' : 'tdl'} tjv__go`, disabled: !canStart, onclick: app.jira.start },
+    h('button', { class: `${aside ? 'tbtn' : 'tdl'} tjv__go`, disabled: !canStart, onclick: app.jira.start },
       icon(again ? 'refresh' : 'right', 16), working ? 'Working…' : (again ? 'Start again' : 'Start')),
+    reading ? h('div', { class: 'tjv__bar' }, h('i', { style: `width:${Math.max(4, Math.min(100, state.progressPct || 0))}%` })) : null,
     reason ? h('div', { class: 'tjv__reason', text: reason }) : null);
 }
 
@@ -167,6 +236,7 @@ function resultOf(app) {
     h('div', { class: 'tjv__file' }, xlsxIcon(40),
       h('div', { class: 'x' }, h('div', { class: 'ttile__name', text: p.filename }),
         h('div', { class: 'ttile__meta' }, `${plural(p.sheets.length, 'sheet')} · `, link('Preview', () => go('preview'))))),
+    state.jira.done ? h('div', { class: 'tjv__done' }, icon('check', 14), 'All done — you can close the Jira tab.') : null,
     h('button', { class: 'tdl tjv__go', onclick: app.download }, icon('download', 17), saved ? 'Download again' : 'Download Excel'),
     saved ? h('div', { class: 'tsaved' }, icon('check', 14), 'Saved to your Downloads folder') : null,
     unmapped.length ? h('div', { class: 'tcallout tcallout--compact tcallout--warn' }, icon('alert', 16),

@@ -27,9 +27,10 @@ const file = (name, text, type) => new File([text], name, { type });
 const person = (p) => ({ accountId: p.accountId, displayName: p.name, emailAddress: p.email });
 const dataset = buildDataset([csvFile('synthetic.csv', HEADERS, ROWS)], { fieldIds: fieldIdsFromCatalog(catalog) });
 let opened = 0;
+let lastJira = null;
 hook.jira.setConnect(() => {
   opened++;
-  return createFakeJira({ dataset, authors: Object.fromEntries([A, B, C, D].map((p) => [p.key, person(p)])), people: [A, B].map(person) });
+  return lastJira = createFakeJira({ dataset, authors: Object.fromEntries([A, B, C, D].map((p) => [p.key, person(p)])), people: [A, B].map(person) });
 });
 
 test('the page starts in Jira mode', () => {
@@ -43,6 +44,11 @@ test('Start finds the people, runs the export through the bridge, and the Excel 
   await hook.load([file('worklogs-settings.json', JSON.stringify(settings), 'application/json')]);
   assert.deepEqual(hook.app.pickedEmails(), [A.email, B.email, C.email]);
   await hook.jira.start();
+  await settle();
+  assert.equal(hook.state.jira.phase, 'mapping', 'Start stops at the columns');
+  assert.equal(hook.state.preview, null, 'no worklogs read before Build Excel');
+  assert.ok(hook.jira.columns().length > 0);
+  hook.jira.build();
   await settle();
   assert.equal(opened, 1);
   assert.deepEqual(hook.state.jira.missing, [C.email], 'C is not in this Jira');
@@ -58,6 +64,7 @@ test('a new period asks for Start again, on the same bridge', async () => {
   await settle();
   assert.equal(hook.state.jira.phase, 'idle');
   await hook.jira.start();
+  hook.jira.build();
   await settle();
   assert.equal(opened, 1, 'the open bridge was reused');
   assert.ok(hook.state.preview?.ok);
@@ -73,6 +80,9 @@ test('picking nobody keeps Start from running', async () => {
 test('the start screen shows the people, the site, Start and the bookmark; preview and groups open', async () => {
   hook.app.pickPeople([A.email, B.email]);
   await hook.jira.start();
+  hook.render();
+  assert.ok(root.textContent.includes('Build Excel'), 'the columns step is shown');
+  hook.jira.build();
   await settle();
   hook.state.page = 'main';
   hook.render();
@@ -128,4 +138,38 @@ test('loading another settings file on the start screen replaces the first, it d
   hook.state.page = 'main';
   hook.render();
   assert.ok(root.textContent.includes('worklogs-settings-other.json'), 'step 1 names the file');
+});
+
+test('the Jira tab is told what goes on, and that it can be closed at the end', async () => {
+  await hook.load([file('worklogs-settings-acme.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email] }), 'application/json')]);
+  await hook.jira.start();
+  hook.jira.build();
+  await settle();
+  const texts = lastJira.statuses.map((s) => s.text);
+  assert.ok(texts.some((t) => /Check the columns/.test(t)));
+  assert.ok(lastJira.statuses.some((s) => typeof s.pct === 'number' && s.pct > 5), 'progress from the export itself');
+  assert.equal(lastJira.statuses.at(-1).done, true);
+  assert.equal(hook.state.jira.done, true);
+});
+
+test('one project group: Jira is asked for its projects only, and the file says so', async () => {
+  await hook.load([file('worklogs-settings-acme.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email], projectGroups: { 'Group AC': ['AC'] } }), 'application/json')]);
+  hook.state.from = '2026-08-01';
+  hook.state.to = '2026-08-31';
+  hook.state.projectGroup = 'Group AC';
+  await hook.jira.start();
+  hook.jira.build();
+  await settle();
+  assert.ok(hook.state.preview?.ok, hook.state.preview?.message);
+  assert.match(hook.state.preview.filename, / - Group AC\.xlsx$/);
+  assert.deepEqual(hook.jira.projects().projects.map((p) => p.key), ['AC'], 'only AC issues came back');
+  hook.state.projectGroup = '';
+});
+
+test('a column picked by hand on the columns step is kept for the site', async () => {
+  await hook.jira.start();
+  const row = hook.jira.columns().find((r) => r.status === 'missing' || r.status === 'auto');
+  hook.jira.setBinding(row.key, '');
+  assert.equal(hook.state.settings.sites['acme.atlassian.net'].bindings[row.key], '');
+  assert.equal(hook.jira.columns().find((r) => r.key === row.key).status, 'empty');
 });

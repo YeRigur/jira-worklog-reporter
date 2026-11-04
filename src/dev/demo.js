@@ -60,7 +60,7 @@ export function startDemo(app, storage) {
     Object.assign(state, {
       settings: emptySettings(), settingsNote: null, bindings: {}, skipped: [], error: null, datePattern: '',
       site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to,
-      picked: null, jira: freshJira(), settingsName: ''
+      picked: null, jira: freshJira(), settingsName: '', projectGroup: '', columnsAll: false, progressPct: 0
     });
     inputs.siteInput.value = '';
     app.jira.setConnect(fakeJira);
@@ -96,7 +96,9 @@ export function startDemo(app, storage) {
       app.jira.setConnect(() => ({ ready: new Promise(() => {}), fetch: () => new Promise(() => {}), close() {}, closed: false }));
       app.jira.start();
     }],
-    ['Jira', 'Excel ready', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); await idle(app); app.render(); }],
+    ['Jira', 'Columns to check', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); }],
+    ['Jira', 'Excel ready', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); app.jira.build(); await idle(app); app.render(); }],
+    ['Jira', 'One project group', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; state.projectGroup = 'Group A'; await app.jira.start(); app.jira.build(); await idle(app); app.render(); }],
     ['Jira', 'Bridge error', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.jira.setConnect(() => { throw new Error('Your browser blocked the Jira tab. Allow pop-ups for this page, then press Start again.'); }); await app.jira.start(); }],
     ['Start', 'No file, no settings', () => reset()],
     ['Start', 'Settings just loaded', async () => { await reset({ settings: SETTINGS }); app.render(); }],

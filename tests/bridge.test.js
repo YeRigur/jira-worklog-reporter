@@ -28,13 +28,21 @@ test('everything else is refused', () => {
 function jiraTab({ opener = makeOpener(), fetch = async () => new Response('{}') } = {}) {
   const listeners = [];
   const alerts = [];
-  const body = { children: [], appendChild(n) { this.children.push(n); } };
-  const win = { opener, addEventListener: (type, fn) => { if (type === 'message') listeners.push(fn); } };
-  const document = { body, createElement: () => ({ style: {}, textContent: '' }) };
+  const node = () => ({
+    style: {}, textContent: '', children: [], parentNode: null, on: {},
+    appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
+    removeChild(c) { this.children = this.children.filter((x) => x !== c); c.parentNode = null; return c; },
+    addEventListener(type, fn) { this.on[type] = fn; }
+  });
+  const body = node();
+  let closed = false;
+  const win = { opener, addEventListener: (type, fn) => { if (type === 'message') listeners.push(fn); }, close: () => { closed = true; } };
+  const document = { body, createElement: node };
   const location = { host: 'acme.atlassian.net' };
   const run = () => new Function('window', 'document', 'location', 'fetch', 'alert', bookmarkletSource(PAGE))(win, document, location, fetch, (m) => alerts.push(m));
   const send = (data, { from = PAGE, source = opener } = {}) => Promise.all(listeners.map((fn) => fn({ origin: from, source, data })));
-  return { opener, body, alerts, run, send, listeners };
+  const card = () => body.children[0]?.children[0];
+  return { opener, body, alerts, run, send, listeners, card, isClosed: () => closed };
 }
 function makeOpener() {
   const sent = [];
@@ -52,7 +60,7 @@ test('it tells the export page it is ready, and only that page', () => {
   const tab = jiraTab();
   tab.run();
   assert.deepEqual(tab.opener.sent, [{ data: { type: 'wl-bridge:ready', v: BRIDGE_VERSION, site: 'acme.atlassian.net' }, target: PAGE }]);
-  assert.equal(tab.body.children.length, 1, 'the badge is shown');
+  assert.equal(tab.body.children.length, 1, 'the card over the page is shown');
 });
 
 test('an allowed request runs same-origin with the session, and the answer goes back', async () => {
@@ -108,4 +116,26 @@ test('the bookmark is the source as a javascript: URL', () => {
   assert.ok(url.startsWith('javascript:'));
   assert.equal(decodeURIComponent(url.slice('javascript:'.length)), bookmarkletSource(PAGE));
   assert.ok(bookmarkletSource(PAGE).includes(JSON.stringify(PAGE)));
+});
+
+test('the export page’s progress shows in the card; at the end it says the tab can be closed', async () => {
+  const tab = jiraTab();
+  tab.run();
+  const [title, text, track, meta, actions] = tab.card().children;
+  await tab.send({ type: 'wl-bridge:status', text: 'Worklogs: 4/10 issues…', pct: 40 });
+  assert.equal(text.textContent, 'Worklogs: 4/10 issues…');
+  assert.equal(track.children[0].style.width, '40%');
+  assert.equal(actions.style.display, 'none');
+  await tab.send({ type: 'wl-bridge:status', text: 'Foreign', pct: 99 }, { from: 'https://evil.com' });
+  assert.equal(text.textContent, 'Worklogs: 4/10 issues…', 'only the export page can say what is going on');
+  await tab.send({ type: 'wl-bridge:status', done: true, text: 'All done — you can close this tab.' });
+  assert.match(title.textContent, /All done/);
+  assert.equal(actions.style.display, 'flex');
+  assert.doesNotMatch(meta.textContent, /keep this tab open/);
+  actions.children[0].on.click();
+  assert.equal(tab.isClosed(), true, 'Close tab closes it');
+  actions.children[1].on.click();
+  assert.equal(tab.body.children.length, 0, 'Back to Jira hides the card');
+  tab.run();
+  assert.equal(tab.body.children.length, 1, 'clicking the bookmark again brings it back');
 });

@@ -41,13 +41,13 @@ export function createConverter(app) {
   // The extension's code talks through window globals, so two runs at once would
   // write into each other. Every run waits for the one before it.
   let queue = Promise.resolve();
-  const runOnce = (config, fetch, origin, save, { progress = save, rename = null } = {}) => {
-    const run = () => startRun(config, fetch, origin, save, progress, rename);
+  const runOnce = (config, fetch, origin, save, { progress = save, rename = null, onProgress = null } = {}) => {
+    const run = () => startRun(config, fetch, origin, save, progress, rename, onProgress);
     queue = queue.then(run, run);
     return queue;
   };
 
-  const startRun = (config, fetch, origin, save, progress, rename) => {
+  const startRun = (config, fetch, origin, save, progress, rename, onProgress) => {
     installXlsx();
     if (!xlsxOriginal) xlsxOriginal = window.__SIMPLELIFE_XLSX__;
     const made = { sheets: [], filename: '', blob: null };
@@ -62,7 +62,10 @@ export function createConverter(app) {
     return new Promise((resolve) => {
       window.__SIMPLELIFE__ = {
         config: { 'jira-worklogs-export': config },
-        notifyProgress: (id, message) => { if (progress) { state.progress = message; app.render(); } },
+        notifyProgress: (id, message, pct) => {
+          onProgress?.(message, pct);
+          if (progress) { state.progress = message; state.progressPct = typeof pct === 'number' ? pct : state.progressPct; app.render(); }
+        },
         notifyProgressDone: () => {},
         notifySuccess: (id, message) => resolve({ ...made, ok: true, message }),
         notifyError: (id, message) => resolve({ ...made, ok: false, message: rewriteExportMessage(message) })

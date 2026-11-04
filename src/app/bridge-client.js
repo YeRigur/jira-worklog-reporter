@@ -86,5 +86,11 @@ export function openBridge({ site, open, events, timers = globalThis, requestTim
     }
   }
 
-  return { ready, fetch, close: shutDown, get closed() { return closed; } };
+  // What the export is doing, shown in the card over the Jira tab.
+  const status = (payload) => {
+    if (closed || !isReady) return;
+    win.postMessage({ type: 'wl-bridge:status', ...payload }, origin);
+  };
+
+  return { ready, fetch, status, close: shutDown, get closed() { return closed; } };
 }

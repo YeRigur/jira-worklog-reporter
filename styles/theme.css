@@ -172,3 +172,24 @@
 .tjv__file1 .x { flex: 1; display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
 .tjv__file1 .x b { overflow-wrap: anywhere; }
 .tjv__file1 .x small { color: var(--text-3); font-size: 12px; }
+
+/* Jira mode: the progress bar, the columns step, done */
+.tjv__bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.tjv__bar i { display: block; height: 100%; background: var(--primary); transition: width .3s; }
+.tjv__cols { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.tjv__cols > .tlinkbtn { align-self: flex-start; }
+.tperiodbox__sum.is-warn { background: var(--warn-soft); color: var(--text); }
+.tcols { display: flex; flex-direction: column; max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-s); }
+.tcol { display: grid; grid-template-columns: 16px minmax(0, 2fr) minmax(0, 3fr); align-items: center; gap: 10px; padding: 6px 10px; font-size: 13px; }
+.tcol + .tcol { border-top: 1px solid var(--line); }
+.tcol--ok > .icon { color: var(--ok); }
+.tcol--warn { background: var(--warn-soft); }
+.tcol--warn > .icon { color: var(--warn); }
+.tcol__label { overflow-wrap: anywhere; font-weight: 600; }
+.tcol__from { color: var(--text-3); font-size: 12px; }
+.tcard select.tcol__pick { min-height: 30px; padding-top: 2px; padding-bottom: 2px; font-size: 12.5px; min-width: 0; width: 100%; }
+.tjv__done { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ok-text, var(--ok)); font-weight: 600; }
+@media (max-width: 560px) {
+  .tcol { grid-template-columns: 16px minmax(0, 1fr); }
+  .tcol > :last-child { grid-column: 2; }
+}

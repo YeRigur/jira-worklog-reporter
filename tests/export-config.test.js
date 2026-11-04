@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalog } from '../src/config/catalog.js';
-import { fieldIdsFromCatalog, exportDefaults, buildExportConfig, buildJiraExportConfig, jiraModel } from '../src/core/export-config.js';
+import { fieldIdsFromCatalog, exportDefaults, buildExportConfig, buildJiraExportConfig, jiraModel, jiraBindings, jiraColumns } from '../src/core/export-config.js';
 
 const SCRIPTS_JSON = catalog;
 
@@ -94,4 +94,22 @@ test('Jira mode: every field Jira lists is there, by-label columns find their id
   assert.deepEqual(config._userMetadata, { '712020:a': { displayName: '', email: 'a@x.com' } });
   for (const id of ['_projectGroup', '_timeSpentHours', 'customfield_10084', 'customfield_10500']) assert.ok(config.exportFields.includes(id), id);
   assert.equal(config.dateFrom, '2026-08-01');
+});
+
+test('columns attached by hand carry over to Jira: a CSV column stands for the Jira field of its name', () => {
+  const fields = [...JIRA_FIELDS, { id: 'customfield_10700', name: 'Satisfaction rating', custom: true }];
+  const bindings = {
+    'label:Satisfaction': 'csv:Satisfaction rating', 'label:Volume': 'customfield_10500',
+    'label:Root cause': 'csv:Not in this Jira', 'label:Unknown': ''
+  };
+  assert.deepEqual(jiraBindings(bindings, fields), { 'label:Satisfaction': 'customfield_10700', 'label:Volume': 'customfield_10500', 'label:Unknown': '' });
+  const rows = jiraColumns({ scriptsJson: SCRIPTS_JSON, fields, bindings });
+  assert.equal(rows.find((r) => r.key === 'label:Satisfaction')?.status, 'bound');
+  assert.equal(rows.find((r) => r.key === 'summary')?.status, 'auto');
+  const config = buildJiraExportConfig({
+    scriptsJson: SCRIPTS_JSON, site: 'acme.atlassian.net', fields, bindings, dateFrom: '2026-08-01', dateTo: '2026-08-31',
+    withSummary: true, users: ['712020:a'], meta: {}, teamEmails: []
+  });
+  assert.ok(config.exportFields.includes('customfield_10700'));
+  assert.equal(config._exportFieldLabels.customfield_10700, 'Satisfaction');
 });

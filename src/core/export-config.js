@@ -90,9 +90,31 @@ export function jiraModel(fields) {
   return { fields: list, specs: Object.fromEntries(list.map((f) => [f.id, { kind: 'jira' }])), datePattern: '' };
 }
 
-export function buildJiraExportConfig({ scriptsJson, site, fields, dateFrom, dateTo, withSummary, users, meta, teamEmails = [] }) {
+// Columns attached by hand, for Jira mode. They were made on a CSV, where a
+// column is "csv:<name>": that stands for the Jira field with that name. A
+// field id is taken as it is, and "" still means "leave it empty".
+export function jiraBindings(bindings, fields) {
+  const list = Array.isArray(fields) ? fields : [];
+  const ids = new Set(list.map((f) => String(f.id)));
+  const byName = new Map(list.map((f) => [String(f.name || '').toLowerCase(), String(f.id)]));
+  const out = {};
+  for (const [key, value] of Object.entries(bindings || {})) {
+    const v = String(value ?? '');
+    if (v === '' || ids.has(v)) { out[key] = v; continue; }
+    const name = v.startsWith('csv:') ? v.slice(4).toLowerCase() : '';
+    if (name && byName.has(name)) out[key] = byName.get(name);
+  }
+  return out;
+}
+
+// The report's columns against this Jira: what each one comes from.
+export function jiraColumns({ scriptsJson, fields, bindings = {} }) {
+  return resolveTemplate(buildColumnTemplate(scriptsJson), { model: jiraModel(fields) }, jiraBindings(bindings, fields));
+}
+
+export function buildJiraExportConfig({ scriptsJson, site, fields, bindings = {}, dateFrom, dateTo, withSummary, users, meta, teamEmails = [] }) {
   const dataset = { site, model: jiraModel(fields), authors: {} };
-  const config = buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo, withSummary, users });
+  const config = buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo, withSummary, users, bindings: jiraBindings(bindings, fields) });
   config._teamEmails = [...teamEmails];
   return config;
 }
