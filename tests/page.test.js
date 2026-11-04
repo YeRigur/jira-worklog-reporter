@@ -54,6 +54,15 @@ test('every screen renders', async () => {
   hook.render();
 });
 
+test('Excel gets hours as text with a dot, so every locale reads them the same', () => {
+  const details = hook.state.preview.sheets.find((s) => s.name === 'Jira Details');
+  const at = details.header.indexOf('Worklog Hours');
+  assert.ok(at >= 0, 'the Details sheet has Worklog Hours');
+  const values = details.rows.map((row) => row[at]);
+  assert.ok(values.length > 0);
+  for (const v of values) assert.match(v, /^-?\d+(\.\d{1,2})?$/);
+});
+
 test('Excel only has the people the settings name', async () => {
   const preview = hook.state.preview;
   const text = JSON.stringify(preview.sheets ?? preview);

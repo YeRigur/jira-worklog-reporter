@@ -9,6 +9,7 @@ import { fieldIdsFromCatalog, exportDefaults, buildExportConfig } from '../core/
 import { resolveTemplate } from '../core/template.js';
 import { rewriteExportMessage } from '../core/messages.js';
 import { buildPreview, emptyColumns } from '../core/preview.js';
+import { hoursAsText } from '../core/hour-cells.js';
 import { withSettings, emailsIn } from '../core/settings.js';
 import { baseJql, periodJql } from '../core/filter-jql.js';
 import { problemsOf, settled } from '../core/column-choice.js';
@@ -51,7 +52,7 @@ export function createConverter(app) {
     if (!xlsxOriginal) xlsxOriginal = window.__SIMPLELIFE_XLSX__;
     const made = { sheets: [], filename: '', blob: null };
     window.__SIMPLELIFE_XLSX__ = {
-      createWorkbookBlob: (specs) => { made.sheets = specs; return xlsxOriginal.createWorkbookBlob(specs); },
+      createWorkbookBlob: (specs) => { made.sheets = hoursAsText(specs); return xlsxOriginal.createWorkbookBlob(made.sheets); },
       downloadBlob: (filename, blob) => {
         made.filename = filename;
         made.blob = blob;
