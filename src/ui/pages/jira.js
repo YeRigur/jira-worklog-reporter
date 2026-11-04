@@ -1,4 +1,4 @@
-// Jira mode on the start screen: one narrow column of numbered steps, in the
+// Jira mode on the start screen: numbered steps in two columns, in the
 // order they are done — settings, people, site, period, projects — then Start,
 // with the reason when it can't start yet; then the columns to check, Build
 // Excel, and the Excel.
@@ -20,15 +20,18 @@ const step = (n, title, aside, ...body) => h('section', { class: 'tjv__step' },
 export function jiraStart(app, { note } = {}) {
   const { state } = app;
   const working = state.jira.phase === 'waiting' || state.jira.phase === 'running' || Boolean(state.previewing);
-  return h('div', { class: 'tjv' },
-    settingsStep(app), note || null,
-    peopleStep(app),
-    whereStep(app),
-    startBlock(app, working),
-    statusOf(app),
-    columnsBlock(app),
-    resultOf(app),
-    h('div', { class: 'tjv__foot' }, bookmarkPanel(app)));
+  // Who on the left (the roster can be long), what and the run on the right.
+  return h('div', { class: 'tjv2' },
+    h('div', { class: 'tjv tjv--who' },
+      settingsStep(app), note || null,
+      peopleStep(app)),
+    h('div', { class: 'tjv tjv--run' },
+      whereStep(app),
+      startBlock(app, working),
+      statusOf(app),
+      columnsBlock(app),
+      resultOf(app),
+      h('div', { class: 'tjv__foot' }, bookmarkPanel(app))));
 }
 
 // Which settings file is in use, and a way to switch to another team's.

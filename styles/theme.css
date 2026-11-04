@@ -204,3 +204,14 @@
 }
 .tgroup__head { flex-wrap: wrap; }
 .tgroup__head .x { flex: 1 1 auto; min-width: 7em; overflow-wrap: normal; }
+
+/* Export page in two columns: who on the left, what and the run on the right */
+.tjv2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 32px; max-width: 1120px; margin: 0 auto; width: 100%; align-items: start; }
+.tjv2 > .tjv { max-width: none; margin: 0; }
+.tjv--run { position: sticky; top: 16px; }
+.tjv2 .tgroups { max-height: min(560px, calc(100vh - 300px)); }
+@media (max-width: 900px) {
+  .tjv2 { grid-template-columns: minmax(0, 1fr); max-width: 600px; }
+  .tjv--run { position: static; padding-top: 12px; border-top: 1px solid var(--line); }
+  .tjv2 .tgroups { max-height: 300px; }
+}
