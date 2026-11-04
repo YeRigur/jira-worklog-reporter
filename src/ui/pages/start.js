@@ -3,16 +3,14 @@ import { h, icon, copyText } from '../dom.js';
 import { DATE_PATTERNS } from '../../core/jira-dates.js';
 import { previousMonth, periodLabel } from '../../core/period.js';
 import { monthsOf } from '../../core/filter-jql.js';
-import { jiraPanel } from './jira.js';
+import { jiraStart } from './jira.js';
 
 export function startPage(app) {
   const { state, link, step, copyJql, settingsNote, settingsSummary, go } = app;
   const { jqlBox } = app.inputs;
 
   if (state.source === 'jira') {
-    return h('div', { class: 'tstart' },
-      h('div', { class: 'tstart__file' }, jiraPanel(app)),
-      h('div', { class: 'tstart__guide' }, ...[periodPanel(app, { jira: true }), settingsLine(app), settingsNote()].filter(Boolean)));
+    return jiraStart(app, { period: periodPanel(app, { jira: true }), settings: settingsLine(app), note: settingsNote() });
   }
 
   // Left: the file — the drop area, and what went wrong with the last one.

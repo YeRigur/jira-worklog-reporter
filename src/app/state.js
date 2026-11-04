@@ -12,7 +12,7 @@ export function createState() {
     source: 'jira',
     // the roster emails ticked for Jira mode; null means everyone on the roster
     picked: null,
-    jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [] },
+    jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [] }, bridgeOpen: false,
     // the report
     from: range.from, to: range.to, site: '', withSummary: null,
     // months whose JQL was copied, to tick them off ("from|to")
