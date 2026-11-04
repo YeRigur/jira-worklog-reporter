@@ -9,7 +9,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const lower = (s) => String(s || '').trim().toLowerCase();
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
-export const emptySettings = () => ({ version: 1, jql: '', projectGroups: {}, groupByDomain: {}, roster: [], teams: {}, people: {}, sites: {} });
+export const emptySettings = () => ({ version: 1, jql: '', site: '', projectGroups: {}, groupByDomain: {}, roster: [], teams: {}, people: {}, sites: {}, accounts: {} });
 
 // What the export needs from scripts.json, and not one address.
 export function publicScriptsJson(scriptsJson) {
@@ -34,6 +34,9 @@ export function settingsFromExtension(scriptsJson, jql = '') {
 function normalize(raw) {
   const s = emptySettings();
   if (typeof raw.jql === 'string') s.jql = raw.jql.trim();
+  // The Jira site Start opens: a bare host, whatever form it was typed in.
+  const site = lower(raw.site).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(site)) s.site = site;
   // Jira project key → group, per team: { "Group": ["KEY", …] }.
   for (const [group, keys] of Object.entries(isObject(raw.projectGroups) ? raw.projectGroups : {})) {
     if (!group || group.startsWith('_') || !Array.isArray(keys)) continue;
@@ -61,6 +64,10 @@ function normalize(raw) {
       skipped: Array.isArray(v.skipped) ? v.skipped.map(String) : []
     };
   }
+  // Email → Jira accountId, found by the page through the bridge.
+  for (const [email, id] of Object.entries(isObject(raw.accounts) ? raw.accounts : {})) {
+    if (EMAIL.test(lower(email)) && typeof id === 'string' && id.trim()) s.accounts[lower(email)] = id.trim();
+  }
   return s;
 }
 
@@ -76,13 +83,15 @@ export function mergeSettings(a, b) {
   return {
     version: 1,
     jql: b.jql || a.jql,
+    site: b.site || a.site || '',
     // A team's project map is one piece: the newer file's replaces the older.
     projectGroups: Object.keys(b.projectGroups || {}).length ? b.projectGroups : (a.projectGroups || {}),
     groupByDomain: { ...(a.groupByDomain || {}), ...(b.groupByDomain || {}) },
     roster: [...new Set([...a.roster, ...b.roster])],
     teams: { ...a.teams, ...b.teams },
     people: { ...a.people, ...b.people },
-    sites: { ...a.sites, ...b.sites }
+    sites: { ...a.sites, ...b.sites },
+    accounts: { ...(a.accounts || {}), ...(b.accounts || {}) }
   };
 }
 

@@ -108,3 +108,23 @@ test('a key Jira can’t translate is found by its worklog: same issue, day and 
   await vm.runInContext(lookupScript(['bbe642be-1'], { 'bbe642be-1': [{ issue: 'AB-2782', date: '2025-10-17', seconds: 900 }] }).replace(/;\s*$/, ''), ctx);
   assert.deepEqual(parseSettings(copied).people['bbe642be-1'], { name: 'Prykladnyi,Petro', email: 'petro.s@x.com', accountId: 'acc-9' });
 });
+
+test('the Jira site and the accounts found for emails are read, cleaned and merged', () => {
+  const s = parseSettings(JSON.stringify({
+    site: 'https://Acme.atlassian.net/jira/your-work',
+    accounts: { 'A.B@x.com': '712020:abc', bad: 'x', 'c@x.com': '', 'd@x.com': 5 }
+  }));
+  assert.equal(s.site, 'acme.atlassian.net');
+  assert.deepEqual(s.accounts, { 'a.b@x.com': '712020:abc' });
+  const merged = mergeSettings(s, parseSettings(JSON.stringify({ accounts: { 'c@x.com': '712020:c', 'a.b@x.com': '712020:new' } })));
+  assert.equal(merged.site, 'acme.atlassian.net');
+  assert.deepEqual(merged.accounts, { 'a.b@x.com': '712020:new', 'c@x.com': '712020:c' });
+  assert.equal(mergeSettings(s, parseSettings('{"site":"other.atlassian.net"}')).site, 'other.atlassian.net');
+});
+
+test('a settings file without a site or accounts still loads', () => {
+  const s = parseSettings('{}');
+  assert.equal(s.site, '');
+  assert.deepEqual(s.accounts, {});
+  assert.equal(parseSettings('{"site":"not a host"}').site, '');
+});
