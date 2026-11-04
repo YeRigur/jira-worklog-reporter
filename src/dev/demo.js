@@ -19,7 +19,7 @@ export function memoryStorage() {
 
 const AUGUST = { from: '2026-08-01', to: '2026-08-31' };
 const FILTER = `worklogDate >= startOfMonth(-1) AND worklogDate < startOfMonth()\nAND worklogAuthor in ("${PEOPLE.A.email}", "${PEOPLE.B.email}", "${PEOPLE.C.email}")`;
-const SETTINGS = { site: 'acme.atlassian.net', roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER, projectGroups: { 'Group A': ['AC'] } };
+const SETTINGS = { site: 'acme.atlassian.net', roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER, projectGroups: { 'Group A': ['AC'] }, groupByDomain: { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' } };
 const SETTINGS_DONE = {
   ...SETTINGS,
   projectGroups: { 'Group A': ['AC', 'ZZZ'], 'Group B': ['VC'] },
@@ -59,7 +59,7 @@ export function startDemo(app, storage) {
     Object.assign(state, {
       settings: emptySettings(), settingsNote: null, bindings: {}, skipped: [], error: null, datePattern: '',
       site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to,
-      picked: null, jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [] }
+      picked: null, jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [], report: '', reportNote: null }
     });
     inputs.siteInput.value = '';
     app.jira.setConnect(fakeJira);

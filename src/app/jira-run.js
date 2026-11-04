@@ -28,36 +28,80 @@ export function createJiraRun(app) {
   const signature = () => JSON.stringify(['jira', runKey(), app.withSummary(), state.settingsRev]);
   const set = (patch) => { Object.assign(state.jira, patch); app.render(); };
 
-  const config = () => buildJiraExportConfig({
+  const config = () => exportConfig(app.pickedEmails(), found);
+
+  // The Jira tab and its bookmark: reused while it is open, opened otherwise.
+  async function ensureBridge() {
+    if (bridge && !bridge.closed) return true;
+    try { bridge = connect(site()); } catch (e) { set({ phase: 'error', message: e.message }); return false; }
+    set({ phase: 'waiting', message: '', slow: false });
+    const slow = setTimeout(() => { if (state.jira.phase === 'waiting') set({ slow: true }); }, SLOW_MS);
+    try { await bridge.ready; return true; } catch (e) { set({ phase: 'error', message: e.message }); return false; } finally { clearTimeout(slow); }
+  }
+
+  async function loadFields() {
+    if (fields) return fields;
+    const res = await cache('/rest/api/3/field');
+    if (!res.ok) throw new Error(`Jira didn’t list its fields (${res.status}).`);
+    fields = await res.json();
+    return fields;
+  }
+
+  const findPeople = async (emails) => {
+    const got = await resolveAccounts(cache, emails, state.settings.accounts);
+    app.rememberAccounts(got.accounts);
+    return got;
+  };
+
+  const exportConfig = (emails, got) => buildJiraExportConfig({
     scriptsJson: withSettings(catalog, state.settings), site: site(), fields, dateFrom: state.from, dateTo: state.to,
-    withSummary: app.withSummary(), meta: found.meta, teamEmails: app.pickedEmails(),
-    users: app.pickedEmails().map((e) => found.accounts[e]).filter(Boolean)
+    withSummary: app.withSummary(), meta: got.meta, teamEmails: emails,
+    users: emails.map((e) => got.accounts[e]).filter(Boolean)
   });
 
   async function start() {
     const people = app.pickedEmails();
     if (!site() || !people.length || state.jira.phase === 'waiting' || state.jira.phase === 'running') return;
-    if (cacheKey !== runKey()) { cache.clear(); cacheKey = runKey(); }
+    if (cacheKey !== runKey()) { cache.clear(); cacheKey = runKey(); fields = null; }
     Object.assign(state, { preview: null, previewing: null, result: null, savedSig: '', savedAs: '' });
-    if (!bridge || bridge.closed) {
-      try { bridge = connect(site()); } catch (e) { set({ phase: 'error', message: e.message }); return; }
-      set({ phase: 'waiting', message: '', slow: false, missing: [], guessed: [] });
-      const slow = setTimeout(() => { if (state.jira.phase === 'waiting') set({ slow: true }); }, SLOW_MS);
-      try { await bridge.ready; } catch (e) { set({ phase: 'error', message: e.message }); return; } finally { clearTimeout(slow); }
-    }
+    state.jira.missing = [];
+    state.jira.guessed = [];
+    if (!(await ensureBridge())) return;
     set({ phase: 'running', message: 'Finding people in Jira…', slow: false });
     try {
-      found = await resolveAccounts(cache, people, state.settings.accounts);
-      app.rememberAccounts(found.accounts);
-      const res = await cache('/rest/api/3/field');
-      if (!res.ok) throw new Error(`Jira didn’t list its fields (${res.status}).`);
-      fields = await res.json();
+      found = await findPeople(people);
+      await loadFields();
     } catch (e) { set({ phase: 'error', message: e.message }); return; }
     if (!Object.keys(found.accounts).length) {
       set({ phase: 'error', message: 'None of the ticked people were found in this Jira.', missing: found.missing, guessed: found.guessed });
       return;
     }
     set({ phase: 'ready', message: '', missing: found.missing, guessed: found.guessed });
+  }
+
+  // A separate Excel for one group, downloaded right away. The main selection
+  // and the main Excel stay as they are.
+  async function groupReport(emails, label) {
+    if (!site() || !emails.length || state.jira.report || state.jira.phase === 'running') return;
+    const before = state.jira.phase === 'waiting' ? 'idle' : state.jira.phase;
+    set({ report: label, reportNote: null });
+    try {
+      if (!(await ensureBridge())) return;
+      set({ phase: before });
+      const got = await findPeople(emails);
+      set({ missing: [...new Set([...state.jira.missing, ...got.missing])], guessed: [...new Set([...state.jira.guessed, ...got.guessed])] });
+      if (!Object.keys(got.accounts).length) throw new Error(`Nobody in ${label} was found in this Jira.`);
+      await loadFields();
+      const tag = String(label).replace(/[\\/:*?"<>|]+/g, '-');
+      const made = await app.runOnce(exportConfig(emails, got), cache, `https://${site()}`, true,
+        { progress: true, rename: (name) => name.replace(/(\.xlsx)?$/i, ` - ${tag}.xlsx`) });
+      set({ reportNote: made.ok ? { ok: true, text: `Saved ${made.filename} to your Downloads folder.` } : { ok: false, text: made.message } });
+    } catch (e) {
+      set({ reportNote: { ok: false, text: e.message } });
+    } finally {
+      state.progress = '';
+      set({ report: '' });
+    }
   }
 
   function ensurePreview() {
@@ -86,5 +130,5 @@ export function createJiraRun(app) {
   const projects = () => projectsFromSearch(cache.entries());
   const setConnect = (fn) => { connect = fn; bridge = null; };
 
-  return { start, ensurePreview, download, signature, projects, site, setConnect };
+  return { start, groupReport, ensurePreview, download, signature, projects, site, setConnect };
 }

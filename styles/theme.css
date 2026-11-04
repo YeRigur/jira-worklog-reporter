@@ -139,9 +139,12 @@
 .tjv__dates { display: flex; align-items: center; gap: 8px; }
 .tjv__dates input { flex: 1; min-width: 0; }
 .tjv__dash { color: var(--text-3); }
-.tchecks { display: flex; flex-direction: column; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-s); }
-.tcheck { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 10px; font-size: 13.5px; cursor: pointer; }
-.tcheck + .tcheck { border-top: 1px solid var(--line); }
+.tgroups { display: flex; flex-direction: column; max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-s); }
+.tgroup + .tgroup { border-top: 1px solid var(--line-strong); }
+.tgroup__head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--surface-hover); font-size: 13px; }
+.tgroup__head .x { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tgroup__count { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+.tcheck { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 10px; font-size: 13.5px; cursor: pointer; border-top: 1px solid var(--line); }
 .tcheck:hover { background: var(--surface-hover); }
 .tcheck .x { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .tcheck__bad { color: var(--danger-text); font-size: 12px; white-space: nowrap; }
@@ -164,5 +167,6 @@
 .tbridge__code summary { cursor: pointer; color: var(--text-3); }
 .tbridge__code pre { max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 @media (max-width: 560px) {
+  .tgroup__head { flex-wrap: wrap; }
   .tbridge__body { flex-direction: column; align-items: stretch; }
 }

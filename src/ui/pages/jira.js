@@ -6,6 +6,7 @@ import { plural } from '../../core/format.js';
 import { previousMonth, periodLabel } from '../../core/period.js';
 import { bookmarkletUrl, bookmarkletSource } from '../../core/bridge.js';
 import { groupOf, projectsInFile } from '../../core/project-groups.js';
+import { rosterGroups } from '../../core/teams.js';
 
 // The bookmark answers only the page it was dragged from.
 const pageOrigin = () => globalThis.location?.origin || '';
@@ -42,6 +43,8 @@ function settingsStep(app) {
         h('button', { class: 'tbtn tbtn--sm', onclick: app.chooseSettings }, icon('upload', 14), 'Load file')));
 }
 
+// People by team group: who is ticked for the main Excel, and per group a
+// separate Excel of its own — for groups outside the main team, to see them.
 function peopleStep(app) {
   const { state, link } = app;
   const roster = state.settings.roster;
@@ -58,19 +61,36 @@ function peopleStep(app) {
     app.render();
   };
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addEmail(); } };
-  const aside = roster.length
-    ? h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: `${picked.length} of ${roster.length}` }),
-      link(picked.length === roster.length ? 'None' : 'All', () => app.pickPeople(picked.length === roster.length ? [] : roster)))
-    : null;
-  return step(2, 'People', aside,
-    roster.length
-      ? h('div', { class: 'tchecks' }, ...roster.map((email) => h('label', { class: 'tcheck' },
+  const busy = Boolean(j.report) || j.phase === 'running' || j.phase === 'waiting';
+  const group = ({ name, emails }) => {
+    const label = name || 'No group';
+    const on = emails.filter((e) => picked.includes(e));
+    const all = on.length === emails.length;
+    const toggle = () => app.pickPeople(all ? picked.filter((e) => !emails.includes(e)) : [...new Set([...picked, ...emails])]);
+    return h('div', { class: 'tgroup' },
+      h('div', { class: 'tgroup__head' },
+        h('b', { class: 'x', text: label }),
+        h('span', { class: 'tgroup__count', text: `${on.length} of ${emails.length}` }),
+        link(all ? 'None' : 'All', toggle),
+        h('button', {
+          class: 'tbtn tbtn--sm', disabled: busy || !app.jira.site(), title: `A separate Excel with only ${label}`,
+          onclick: () => app.jira.groupReport(emails, label)
+        }, icon('download', 13), j.report === label ? 'Building…' : 'Separate report')),
+      ...emails.map((email) => h('label', { class: 'tcheck' },
         h('input', {
           type: 'checkbox', checked: picked.includes(email),
           onchange: (e) => app.pickPeople(e.target.checked ? [...picked, email] : picked.filter((x) => x !== email))
         }),
-        h('span', { class: 'x', text: email }), note(email))))
-      : null,
+        h('span', { class: 'x', text: email }), note(email))));
+  };
+  const aside = roster.length
+    ? h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: `${picked.length} of ${roster.length}` }),
+      link(picked.length === roster.length ? 'None' : 'All', () => app.pickPeople(picked.length === roster.length ? [] : roster)))
+    : null;
+  const reportNote = j.reportNote ? h('div', { class: j.reportNote.ok ? 'tok' : 'terr', text: j.reportNote.text }) : null;
+  return step(2, 'People', aside,
+    roster.length ? h('div', { class: 'tgroups' }, ...rosterGroups(state.settings, picked).map(group)) : null,
+    j.report ? h('div', { class: 'thelp', text: state.progress || `Building the ${j.report} report…` }) : reportNote,
     h('div', { class: 'tjv__row' }, input, h('button', { class: 'tbtn tbtn--sm', onclick: addEmail }, icon('plus', 14), 'Add')));
 }
 

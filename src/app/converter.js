@@ -41,22 +41,22 @@ export function createConverter(app) {
   // The extension's code talks through window globals, so two runs at once would
   // write into each other. Every run waits for the one before it.
   let queue = Promise.resolve();
-  const runOnce = (config, fetch, origin, save, { progress = save } = {}) => {
-    const run = () => startRun(config, fetch, origin, save, progress);
+  const runOnce = (config, fetch, origin, save, { progress = save, rename = null } = {}) => {
+    const run = () => startRun(config, fetch, origin, save, progress, rename);
     queue = queue.then(run, run);
     return queue;
   };
 
-  const startRun = (config, fetch, origin, save, progress) => {
+  const startRun = (config, fetch, origin, save, progress, rename) => {
     installXlsx();
     if (!xlsxOriginal) xlsxOriginal = window.__SIMPLELIFE_XLSX__;
     const made = { sheets: [], filename: '', blob: null };
     window.__SIMPLELIFE_XLSX__ = {
       createWorkbookBlob: (specs) => { made.sheets = hoursAsText(specs); return xlsxOriginal.createWorkbookBlob(made.sheets); },
       downloadBlob: (filename, blob) => {
-        made.filename = filename;
+        made.filename = rename ? rename(filename) : filename;
         made.blob = blob;
-        if (save) downloadFile(filename, blob);
+        if (save) downloadFile(made.filename, blob);
       }
     };
     return new Promise((resolve) => {

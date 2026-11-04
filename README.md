@@ -15,8 +15,11 @@ the page is not allowed to connect to any server.
    remembers it, so you only do this once.
 3. **Choose the period.** By default it is last month.
 4. **Tick the people** and check the Jira site (it comes from the settings
-   file). Add someone with *Add* if they are missing — then save the settings
-   file to pass it on.
+   file). People are listed by team group (Teams assignments, else the email's
+   domain); the ones your team's filter names are ticked at first. Add someone
+   with *Add* if they are missing — then save the settings file to pass it on.
+   *Separate report* next to a group downloads an Excel with only that group,
+   without touching the main one.
 5. **Press Start.** Jira opens in a new tab. The first time, drag the
    *Worklogs bridge* button to your bookmarks bar (it is under *First time?*).
    In the Jira tab, click that bookmark. The page then reads the worklogs from

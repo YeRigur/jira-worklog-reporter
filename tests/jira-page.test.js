@@ -94,3 +94,24 @@ test('with a team filter, only the people it names are ticked at first', async (
   hook.app.pickPeople([C.email]);
   assert.deepEqual(hook.app.pickedEmails(), [C.email], 'a choice of their own wins');
 });
+
+test('people are listed by team group, and a group gets a separate Excel of its own', async () => {
+  const groupByDomain = { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' };
+  await hook.load([file('worklogs-settings.json', JSON.stringify({ groupByDomain }), 'application/json')]);
+  hook.app.pickPeople([C.email]);
+  hook.render();
+  const text = root.textContent;
+  for (const s of ['Team UA', 'Team BR', 'Separate report']) assert.ok(text.includes(s), s);
+  await hook.jira.groupReport([A.email, B.email], 'Team UA');
+  assert.equal(hook.state.jira.reportNote?.ok, true, hook.state.jira.reportNote?.text);
+  assert.match(hook.state.jira.reportNote.text, / - Team UA\.xlsx/);
+  assert.deepEqual(hook.app.pickedEmails(), [C.email], 'the main selection is untouched');
+  assert.equal(hook.state.jira.report, '');
+});
+
+test('the Jira site typed on the page goes into the settings file', () => {
+  hook.app.rememberSite('https://Other-Site.atlassian.net/jira/your-work');
+  assert.equal(hook.state.settings.site, 'other-site.atlassian.net');
+  hook.app.rememberSite('not a site');
+  assert.equal(hook.state.settings.site, 'other-site.atlassian.net');
+});

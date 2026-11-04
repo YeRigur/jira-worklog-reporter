@@ -13,6 +13,7 @@ export function createInputs(app) {
       oninput: (e) => { state.site = e.target.value; },
       // Attachments are kept per site, and the site is known only now.
       onchange: () => {
+        app.rememberSite(state.site);
         if (!Object.keys(state.bindings).length) app.loadBindings();
         if (!state.skipped.length) app.loadSkipped();
         state.result = null;

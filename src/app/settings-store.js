@@ -4,7 +4,7 @@
 // to pass on.
 import { emptySettings, parseSettings, mergeSettings, emailsIn } from '../core/settings.js';
 import { withProjectGroup } from '../core/project-groups.js';
-import { plural } from '../core/format.js';
+import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
 
 const SETTINGS_KEY = 'simplelife-worklogs-settings';
@@ -135,6 +135,13 @@ export function createSettingsStore(app) {
     if (state.picked !== null && !state.picked.includes(email)) { state.picked = [...state.picked, email]; savePicked(); }
     return true;
   };
+  // The Jira site typed on the page goes into the settings file too.
+  const rememberSite = (raw) => {
+    const site = cleanSite(raw);
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(site) || state.settings.site === site) return;
+    state.settings.site = site;
+    keepSettings();
+  };
   // Accounts found through the bridge, kept so the next run doesn't ask again.
   const rememberAccounts = (map) => {
     const fresh = Object.entries(map).filter(([email, id]) => state.settings.accounts[email] !== id);
@@ -152,6 +159,6 @@ export function createSettingsStore(app) {
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
     applySettings, loadSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings,
-    pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts
+    pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts, rememberSite
   };
 }
