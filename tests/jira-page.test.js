@@ -97,7 +97,7 @@ test('with a team filter, only the people it names are ticked at first', async (
 
 test('people are listed by team group, and a group gets a separate Excel of its own', async () => {
   const groupByDomain = { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' };
-  await hook.load([file('worklogs-settings.json', JSON.stringify({ groupByDomain }), 'application/json')]);
+  await hook.load([file('worklogs-settings.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email, C.email], groupByDomain }), 'application/json')]);
   hook.app.pickPeople([C.email]);
   hook.render();
   const text = root.textContent;
@@ -114,4 +114,18 @@ test('the Jira site typed on the page goes into the settings file', () => {
   assert.equal(hook.state.settings.site, 'other-site.atlassian.net');
   hook.app.rememberSite('not a site');
   assert.equal(hook.state.settings.site, 'other-site.atlassian.net');
+});
+
+test('loading another settings file on the start screen replaces the first, it doesn’t add to it', async () => {
+  await hook.load([file('worklogs-settings-acme.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email, C.email] }), 'application/json')]);
+  hook.app.pickPeople([C.email]);
+  await hook.load([file('worklogs-settings-other.json', JSON.stringify({ site: 'other.atlassian.net', roster: [A.email], jql: `worklogAuthor in ("${A.email}")` }), 'application/json')]);
+  assert.deepEqual(hook.state.settings.roster, [A.email], 'only the new file’s people');
+  assert.equal(hook.state.settings.site, 'other.atlassian.net');
+  assert.equal(hook.jira.site(), 'other.atlassian.net', 'the new site is used, not the one typed before');
+  assert.deepEqual(hook.app.pickedEmails(), [A.email], 'ticks start over from the new file');
+  assert.equal(hook.state.settingsName, 'worklogs-settings-other.json');
+  hook.state.page = 'main';
+  hook.render();
+  assert.ok(root.textContent.includes('worklogs-settings-other.json'), 'step 1 names the file');
 });

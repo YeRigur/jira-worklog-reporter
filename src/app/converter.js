@@ -166,7 +166,10 @@ export function createConverter(app) {
   // Dropped or picked files: settings (.json) first, then the CSVs.
   async function load(files) {
     const json = files.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json');
-    for (const f of json) app.loadSettingsText(f.name, await f.text());
+    // On the Jira start screen a settings file takes the place of the one kept;
+    // elsewhere it adds to it (people found by Jira, a second team's groups).
+    const apply = state.source === 'jira' && !state.dataset ? app.replaceSettingsText : app.loadSettingsText;
+    for (const f of json) apply(f.name, await f.text());
     const csv = files.filter((f) => /\.csv$/i.test(f.name) || f.type === 'text/csv');
     if (!csv.length) {
       if (!json.length) {
@@ -183,6 +186,13 @@ export function createConverter(app) {
 
   const choose = async () => load(await pickFiles());
   const chooseSettings = async () => load(await pickFiles('.json,application/json'));
+  // The start screen's button: always a replacement, one file.
+  const switchSettings = async () => {
+    const [f] = await pickFiles('.json,application/json');
+    if (!f) return;
+    app.replaceSettingsText(f.name, await f.text());
+    app.render();
+  };
 
   const startOver = () => {
     Object.assign(state, {
@@ -199,6 +209,6 @@ export function createConverter(app) {
 
   return {
     siteOf, withSummary, people, filterEmails, keptAuthors, teamJql, signature, ensurePreview,
-    download, parse, load, choose, chooseSettings, startOver, emptyNow, fileNames, runOnce, previewWith
+    download, parse, load, choose, chooseSettings, switchSettings, startOver, emptyNow, fileNames, runOnce, previewWith
   };
 }

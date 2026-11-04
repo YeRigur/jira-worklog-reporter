@@ -31,16 +31,21 @@ export function jiraStart(app, { note } = {}) {
       h('button', { class: 'tlinkbtn', onclick: () => { state.source = 'csv'; app.render(); } }, 'Or upload a CSV instead')));
 }
 
+// Which settings file is in use, and a way to switch to another team's.
 function settingsStep(app) {
   const { state, link, go } = app;
-  const loaded = state.settings.roster.length > 0;
+  const s = state.settings;
+  const loaded = s.roster.length > 0;
+  const facts = [plural(s.roster.length, 'person', 'people'), s.site].filter(Boolean).join(' · ');
   return step(1, 'Team settings',
-    loaded ? link('Change', () => go('settings')) : null,
+    loaded ? link('Edit', () => go('settings')) : null,
     loaded
-      ? h('div', { class: 'tjv__ok' }, icon('check', 14), h('span', { text: `${plural(state.settings.roster.length, 'person', 'people')} on the roster` }))
+      ? h('div', { class: 'tjv__row tjv__file1' }, icon('check', 14),
+        h('span', { class: 'x' }, h('b', { text: state.settingsName || 'Settings loaded' }), h('small', { text: facts })),
+        h('button', { class: 'tbtn tbtn--sm', title: 'Load another team’s settings file instead of this one', onclick: app.switchSettings }, icon('upload', 14), 'Switch file'))
       : h('div', { class: 'tjv__row' },
         h('span', { class: 'thelp', text: 'Your team lead has the settings file (worklogs-settings-….json). Load it once — the browser keeps it.' }),
-        h('button', { class: 'tbtn tbtn--sm', onclick: app.chooseSettings }, icon('upload', 14), 'Load file')));
+        h('button', { class: 'tbtn tbtn--sm', onclick: app.switchSettings }, icon('upload', 14), 'Load file')));
 }
 
 // People by team group: who is ticked for the main Excel, and per group a

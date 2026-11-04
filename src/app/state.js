@@ -3,6 +3,9 @@
 import { previousMonth } from '../core/period.js';
 import { emptySettings } from '../core/settings.js';
 
+// Jira mode's run, before anything happened.
+export const freshJira = () => ({ phase: 'idle', message: '', slow: false, missing: [], guessed: [], report: '', reportNote: null });
+
 export function createState() {
   const range = previousMonth();
   return {
@@ -12,7 +15,7 @@ export function createState() {
     source: 'jira',
     // the roster emails ticked for Jira mode; null means everyone on the roster
     picked: null,
-    jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [], report: '', reportNote: null }, bridgeOpen: false,
+    jira: freshJira(), bridgeOpen: false,
     // the report
     from: range.from, to: range.to, site: '', withSummary: null,
     // months whose JQL was copied, to tick them off ("from|to")
@@ -26,6 +29,6 @@ export function createState() {
     page: 'main', pickKeys: [], searchFor: '', searchQuery: '', searchPick: '', searchBack: 'pick', emptyOk: false,
     busy: false, progress: '', result: null,
     // the team's settings file
-    settings: emptySettings(), settingsRev: 0, settingsNote: null, lookupText: ''
+    settings: emptySettings(), settingsName: '', settingsRev: 0, settingsNote: null, lookupText: ''
   };
 }

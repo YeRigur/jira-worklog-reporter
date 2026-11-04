@@ -6,9 +6,11 @@ import { emptySettings, parseSettings, mergeSettings, emailsIn, settingsFileName
 import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
+import { freshJira } from './state.js';
 
 const SETTINGS_KEY = 'simplelife-worklogs-settings';
 const PICKED_KEY = 'simplelife-worklogs-picked';
+const NAME_KEY = 'simplelife-worklogs-settings-name';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function createSettingsStore(app) {
@@ -63,9 +65,36 @@ export function createSettingsStore(app) {
     state.result = null;
   };
 
+  const keepName = (name) => {
+    state.settingsName = String(name || '');
+    try { app.storage.setItem(NAME_KEY, state.settingsName); } catch { /* not kept */ }
+  };
+
+  // Another team's file on the start screen: it takes the place of the one
+  // kept here — people, site and ticks start over from it.
+  const replaceSettingsText = (name, text) => {
+    try {
+      const s = parseSettings(text);
+      state.settings = s;
+      keepSettings();
+      keepName(name);
+      state.picked = null;
+      savePicked();
+      state.site = '';
+      if (app.inputs) app.inputs.siteInput.value = '';
+      Object.assign(state, { preview: null, previewing: null, result: null, savedSig: '', savedAs: '' });
+      state.jira = freshJira();
+      if (state.dataset) reloadSiteChoices();
+      state.settingsNote = { ok: true, text: `Switched to “${name}”: ${plural(s.roster.length, 'person', 'people')}${s.site ? ` on ${s.site}` : ''}.` };
+    } catch (e) {
+      state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
+    }
+  };
+
   const loadSettingsText = (name, text) => {
     try {
       const s = parseSettings(text);
+      keepName(name);
       applySettings(s, `Loaded “${name}”: ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}, ${plural(s.roster.length, 'roster email')}, ${plural(Object.keys(s.teams).length, 'team assignment')}, ${plural(Object.keys(s.people).length, 'person', 'people')}.`);
     } catch (e) {
       state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
@@ -152,6 +181,7 @@ export function createSettingsStore(app) {
   };
 
   state.settings = read();
+  try { state.settingsName = app.storage.getItem(NAME_KEY) || ''; } catch { state.settingsName = ''; }
   try {
     const kept = JSON.parse(app.storage.getItem(PICKED_KEY) || 'null');
     state.picked = Array.isArray(kept) ? kept : null;
@@ -159,7 +189,7 @@ export function createSettingsStore(app) {
 
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
-    applySettings, loadSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings,
+    applySettings, loadSettingsText, replaceSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings,
     pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts, rememberSite
   };
 }

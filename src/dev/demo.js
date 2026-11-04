@@ -9,6 +9,7 @@ import { openSearch } from '../ui/pages/search.js';
 import { HEADERS, ROWS, PEOPLE } from '../../tests/fixtures/synthetic.js';
 import { toCsv } from '../../tests/support/helpers.js';
 import { createFakeJira } from './fake-jira.js';
+import { freshJira } from '../app/state.js';
 import { buildDataset } from '../core/dataset.js';
 import { fieldIdsFromCatalog } from '../core/export-config.js';
 
@@ -59,7 +60,7 @@ export function startDemo(app, storage) {
     Object.assign(state, {
       settings: emptySettings(), settingsNote: null, bindings: {}, skipped: [], error: null, datePattern: '',
       site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to,
-      picked: null, jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [], report: '', reportNote: null }
+      picked: null, jira: freshJira(), settingsName: ''
     });
     inputs.siteInput.value = '';
     app.jira.setConnect(fakeJira);

@@ -18,6 +18,7 @@ export function createJiraRun(app) {
   const { state, catalog } = app;
   let connect = browserConnect;
   let bridge = null;
+  let bridgeSite = '';
   let cacheKey = '';
   let fields = null;
   let found = null;
@@ -32,7 +33,10 @@ export function createJiraRun(app) {
 
   // The Jira tab and its bookmark: reused while it is open, opened otherwise.
   async function ensureBridge() {
-    if (bridge && !bridge.closed) return true;
+    // A bridge to another site is no use: open the new one.
+    if (bridge && !bridge.closed && bridgeSite === site()) return true;
+    if (bridge && !bridge.closed) bridge.close();
+    bridgeSite = site();
     try { bridge = connect(site()); } catch (e) { set({ phase: 'error', message: e.message }); return false; }
     set({ phase: 'waiting', message: '', slow: false });
     const slow = setTimeout(() => { if (state.jira.phase === 'waiting') set({ slow: true }); }, SLOW_MS);
