@@ -20,7 +20,7 @@ import { downloadFile } from '../ui/dom.js';
 
 const DONE_TEXT = 'All done — you can close this tab and check the report on the export page.';
 const browserConnect = (site) => openBridge({ site, open: (url, name) => window.open(url, name), events: window });
-// "worklogs_2026-10.xlsx" + ["NBS Latam", "Purina PGL"] → "worklogs_2026-10 - NBS Latam - Purina PGL.xlsx"
+// "worklogs_2026-10.xlsx" + ["Team B", "Group X"] → "worklogs_2026-10 - Team B - Group X.xlsx"
 const tagged = (tags) => {
   const clean = tags.filter(Boolean).map((t) => String(t).replace(/[\\/:*?"<>|]+/g, '-'));
   return clean.length ? (name) => name.replace(/(\.xlsx)?$/i, ` - ${clean.join(' - ')}.xlsx`) : null;

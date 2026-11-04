@@ -84,7 +84,7 @@ test('a settings file without a site or accounts still loads', () => {
 });
 
 test('the settings file is named after the Jira instance, without atlassian.net', () => {
-  assert.equal(settingsFileName('nbslvivws.atlassian.net'), 'worklogs-settings-nbslvivws.json');
+  assert.equal(settingsFileName('acme.atlassian.net'), 'worklogs-settings-acme.json');
   assert.equal(settingsFileName('jira.acme.com'), 'worklogs-settings-jira.acme.com.json');
   assert.equal(settingsFileName(''), 'worklogs-settings.json');
 });

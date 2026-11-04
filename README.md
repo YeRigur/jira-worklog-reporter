@@ -12,7 +12,7 @@ to any server: it reads Jira through your own Jira tab, with a bookmark (the
 1. **Open the page.** Go to the site (GitHub Pages) — it is a single page,
    `index.html`.
 2. **Load your team settings** (first time only). Click *Load file* (step 1) and
-   pick `worklogs-settings-<site>.json` (for example `worklogs-settings-nbslvivws.json`). Ask your team lead for this file. The browser
+   pick `worklogs-settings-<site>.json` (for example `worklogs-settings-acme.json`). Ask your team lead for this file. The browser
    remembers it, so you only do this once.
 3. **Choose the period.** By default it is last month.
 4. **Tick the people** and check the Jira site (it comes from the settings
@@ -48,7 +48,7 @@ so the GitHub Pages page needs its own.
 ## The settings file
 
 The page itself contains no names or emails. All team data lives in
-`worklogs-settings-<site>.json` (for example `worklogs-settings-nbslvivws.json`):
+`worklogs-settings-<site>.json` (for example `worklogs-settings-acme.json`):
 
 - the team roster (emails),
 - the Jira site,
