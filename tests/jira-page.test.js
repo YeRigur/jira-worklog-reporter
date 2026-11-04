@@ -85,3 +85,12 @@ test('the start screen shows the people, the site, Start and the bookmark; previ
   hook.state.page = 'main';
   hook.render();
 });
+
+test('with a team filter, only the people it names are ticked at first', async () => {
+  hook.state.picked = null;
+  const jql = `worklogDate >= startOfMonth(-1) AND worklogAuthor in ("${B.email}", "${A.email}")`;
+  await hook.load([file('worklogs-settings.json', JSON.stringify({ roster: [A.email, B.email, C.email], jql }), 'application/json')]);
+  assert.deepEqual(hook.app.pickedEmails(), [A.email, B.email]);
+  hook.app.pickPeople([C.email]);
+  assert.deepEqual(hook.app.pickedEmails(), [C.email], 'a choice of their own wins');
+});

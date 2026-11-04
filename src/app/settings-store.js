@@ -114,8 +114,14 @@ export function createSettingsStore(app) {
   const hasSettings = () => Boolean(state.settings.roster.length || Object.keys(state.settings.teams).length
     || Object.keys(state.settings.people).length || Object.keys(state.settings.projectGroups || {}).length);
 
-  // Jira mode: who is ticked. Nobody ticked yet means the whole roster.
-  const pickedEmails = () => (state.picked === null ? [...state.settings.roster] : state.settings.roster.filter((e) => state.picked.includes(e)));
+  // Jira mode: who is ticked. Until someone ticks by hand, the people the
+  // team's filter names — or, without a filter, the whole roster.
+  const defaultPicked = () => {
+    const named = emailsIn(state.settings.jql);
+    const inRoster = state.settings.roster.filter((e) => named.includes(e));
+    return inRoster.length ? inRoster : [...state.settings.roster];
+  };
+  const pickedEmails = () => (state.picked === null ? defaultPicked() : state.settings.roster.filter((e) => state.picked.includes(e)));
   const savePicked = () => { try { app.storage.setItem(PICKED_KEY, JSON.stringify(state.picked)); } catch { /* not kept */ } };
   const pickPeople = (emails) => { state.picked = [...new Set(emails)]; savePicked(); state.result = null; app.render(); };
   const addRosterEmail = (raw) => {
