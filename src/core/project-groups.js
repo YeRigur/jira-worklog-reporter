@@ -29,3 +29,23 @@ export function projectsInFile(dataset) {
   return dataset.projects.map((p) => ({ key: p.key.toUpperCase(), name: p.name, issues: count.get(p.key.toUpperCase()) || 0 }))
     .sort((a, b) => b.issues - a.issues || a.key.localeCompare(b.key));
 }
+
+// Jira mode: the projects of the issues Jira's search returned, in the shape
+// projectsInFile reads, so the groups page works without a CSV.
+export function projectsFromSearch(entries) {
+  const projects = new Map();
+  const issues = new Map();
+  for (const e of entries) {
+    if (new URL(e.url, 'https://jira.invalid').pathname !== '/rest/api/3/search/jql') continue;
+    let body;
+    try { body = JSON.parse(e.text); } catch { continue; }
+    for (const issue of body.issues || []) {
+      const p = issue.fields?.project;
+      if (!p?.key) continue;
+      const key = String(p.key).toUpperCase();
+      if (!projects.has(key)) projects.set(key, { key, name: p.name || '' });
+      issues.set(String(issue.key).toUpperCase(), { projectKey: key });
+    }
+  }
+  return { projects: [...projects.values()], issues: [...issues.values()] };
+}
