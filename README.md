@@ -11,7 +11,7 @@ the page is not allowed to connect to any server.
 1. **Open the page.** Go to the site (GitHub Pages) — it is a single page,
    `index.html`.
 2. **Load your team settings** (first time only). Click *Load settings file* and
-   pick `worklogs-settings.json`. Ask your team lead for this file. The browser
+   pick `worklogs-settings-<site>.json` (for example `worklogs-settings-nbslvivws.json`). Ask your team lead for this file. The browser
    remembers it, so you only do this once.
 3. **Choose the period.** By default it is last month.
 4. **Tick the people** and check the Jira site (it comes from the settings
@@ -40,7 +40,7 @@ file on the page.
 ## The settings file
 
 The page itself contains no names or emails. All team data lives in
-`worklogs-settings.json`:
+`worklogs-settings-<site>.json` (for example `worklogs-settings-nbslvivws.json`):
 
 - the team roster (emails),
 - the Jira site,

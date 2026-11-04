@@ -39,7 +39,7 @@ function settingsStep(app) {
     loaded
       ? h('div', { class: 'tjv__ok' }, icon('check', 14), h('span', { text: `${plural(state.settings.roster.length, 'person', 'people')} on the roster` }))
       : h('div', { class: 'tjv__row' },
-        h('span', { class: 'thelp', text: 'Your team lead has worklogs-settings.json. Load it once — the browser keeps it.' }),
+        h('span', { class: 'thelp', text: 'Your team lead has the settings file (worklogs-settings-….json). Load it once — the browser keeps it.' }),
         h('button', { class: 'tbtn tbtn--sm', onclick: app.chooseSettings }, icon('upload', 14), 'Load file')));
 }
 

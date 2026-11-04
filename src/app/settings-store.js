@@ -2,7 +2,7 @@
 // Jira keys, project groups, and per site the columns attached by hand and the
 // ones gone without. Kept on this computer once loaded; saved back as a file
 // to pass on.
-import { emptySettings, parseSettings, mergeSettings, emailsIn } from '../core/settings.js';
+import { emptySettings, parseSettings, mergeSettings, emailsIn, settingsFileName } from '../core/settings.js';
 import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
@@ -74,8 +74,9 @@ export function createSettingsStore(app) {
 
   const saveSettingsFile = () => {
     const blob = new Blob([`${JSON.stringify(state.settings, null, 2)}\n`], { type: 'application/json' });
-    downloadFile('worklogs-settings.json', blob);
-    state.settingsNote = { ok: true, text: 'Saved worklogs-settings.json to your Downloads folder. Keep it out of shared folders — it holds people’s emails.' };
+    const name = settingsFileName(state.settings.site || cleanSite(state.site));
+    downloadFile(name, blob);
+    state.settingsNote = { ok: true, text: `Saved ${name} to your Downloads folder. Keep it out of shared folders — it holds people’s emails.` };
     app.render();
   };
 

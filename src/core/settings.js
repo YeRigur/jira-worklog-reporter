@@ -170,3 +170,10 @@ export function lookupScript(keys, samples = {}) {
 })();`;
 }
 
+
+// The file is named after its Jira instance: worklogs-settings-<site>.json,
+// without ".atlassian.net" — still matched by .gitignore's worklogs-settings*.json.
+export function settingsFileName(site) {
+  const name = String(site || '').trim().toLowerCase().replace(/\.atlassian\.net$/, '').replace(/[^a-z0-9.-]+/g, '-');
+  return name ? `worklogs-settings-${name}.json` : 'worklogs-settings.json';
+}

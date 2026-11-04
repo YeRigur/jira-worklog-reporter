@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { parseSettings, mergeSettings, withSettings, settingsFromExtension, lookupScript, publicScriptsJson, emailsIn } from '../src/core/settings.js';
+import { parseSettings, mergeSettings, withSettings, settingsFromExtension, lookupScript, publicScriptsJson, emailsIn, settingsFileName } from '../src/core/settings.js';
 
 const EXT = {
   projectGroups: { 'Brand PGL': ['AC'] },
@@ -127,4 +127,10 @@ test('a settings file without a site or accounts still loads', () => {
   assert.equal(s.site, '');
   assert.deepEqual(s.accounts, {});
   assert.equal(parseSettings('{"site":"not a host"}').site, '');
+});
+
+test('the settings file is named after the Jira instance, without atlassian.net', () => {
+  assert.equal(settingsFileName('nbslvivws.atlassian.net'), 'worklogs-settings-nbslvivws.json');
+  assert.equal(settingsFileName('jira.acme.com'), 'worklogs-settings-jira.acme.com.json');
+  assert.equal(settingsFileName(''), 'worklogs-settings.json');
 });
