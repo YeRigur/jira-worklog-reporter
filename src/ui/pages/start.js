@@ -10,7 +10,7 @@ export function startPage(app) {
   const { jqlBox } = app.inputs;
 
   if (state.source === 'jira') {
-    return jiraStart(app, { period: periodPanel(app, { jira: true }), settings: settingsLine(app), note: settingsNote() });
+    return jiraStart(app, { note: settingsNote() });
   }
 
   // Left: the file — the drop area, and what went wrong with the last one.
@@ -55,7 +55,7 @@ export function startPage(app) {
 
 // The period: two dates, what they mean, and — when they span several months —
 // one export per month (Jira caps a CSV at 1000 issues), each copied in turn.
-function periodPanel(app, { jira = false } = {}) {
+function periodPanel(app) {
   const { state } = app;
   const { fromInput, toInput } = app.inputs;
   const days = state.from && state.to ? Math.round((Date.parse(state.to) - Date.parse(state.from)) / 86400000) + 1 : 0;
@@ -74,10 +74,10 @@ function periodPanel(app, { jira = false } = {}) {
         h('span', { class: 'tperiodbox__sum', text: `${periodLabel(state.from, state.to)}${days > 0 ? ` · ${days} days` : ''}` })),
       resetButton),
     h('div', { class: 'tdates' }, h('label', { class: 'tfield' }, 'Start date', fromInput), h('label', { class: 'tfield' }, 'End date', toInput)),
-    h('div', { class: 'thelp', text: jira ? 'The Excel covers this period.' : 'The JQL below and the Excel both use this period.' }),
+    h('div', { class: 'thelp', text: 'The JQL below and the Excel both use this period.' }),
     // One month needs no warning, but its JQL is copied the same way.
-    !jira && months.length === 1 ? monthPicker(app, months) : null,
-    !jira && months.length > 1 ? h('div', { class: `tcallout tcallout--compact tcallout--${tooLong ? 'warn' : 'info'}` },
+    months.length === 1 ? monthPicker(app, months) : null,
+    months.length > 1 ? h('div', { class: `tcallout tcallout--compact tcallout--${tooLong ? 'warn' : 'info'}` },
       icon(tooLong ? 'alert' : 'info', 16),
       h('div', { class: 'tcallout__body' },
         h('span', {}, h('b', { text: `${months.length} months: ` }),
