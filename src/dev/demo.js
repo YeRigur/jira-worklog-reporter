@@ -8,6 +8,9 @@ import { problemsOf } from '../core/column-choice.js';
 import { openSearch } from '../ui/pages/search.js';
 import { HEADERS, ROWS, PEOPLE } from '../../tests/fixtures/synthetic.js';
 import { toCsv } from '../../tests/support/helpers.js';
+import { createFakeJira } from './fake-jira.js';
+import { buildDataset } from '../core/dataset.js';
+import { fieldIdsFromCatalog } from '../core/export-config.js';
 
 export function memoryStorage() {
   const m = new Map();
@@ -16,7 +19,7 @@ export function memoryStorage() {
 
 const AUGUST = { from: '2026-08-01', to: '2026-08-31' };
 const FILTER = `worklogDate >= startOfMonth(-1) AND worklogDate < startOfMonth()\nAND worklogAuthor in ("${PEOPLE.A.email}", "${PEOPLE.B.email}", "${PEOPLE.C.email}")`;
-const SETTINGS = { roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER, projectGroups: { 'Group A': ['AC'] } };
+const SETTINGS = { site: 'acme.atlassian.net', roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER, projectGroups: { 'Group A': ['AC'] } };
 const SETTINGS_DONE = {
   ...SETTINGS,
   projectGroups: { 'Group A': ['AC', 'ZZZ'], 'Group B': ['VC'] },
@@ -40,12 +43,26 @@ const idle = async (app) => {
 export function startDemo(app, storage) {
   const { state, inputs } = app;
 
+  // Jira mode in the demo talks to a fake Jira holding the synthetic data;
+  // PEOPLE.C isn't in it, to show someone not found.
+  const person = (p) => ({ accountId: p.accountId, displayName: p.name, emailAddress: p.email });
+  const everyone = [PEOPLE.A, PEOPLE.B, PEOPLE.C, PEOPLE.D];
+  const fakeJira = () => createFakeJira({
+    dataset: buildDataset([{ name: 'demo.csv', text: CSV, encoding: 'utf-8' }], { fieldIds: fieldIdsFromCatalog(app.catalog) }),
+    authors: Object.fromEntries(everyone.map((p) => [p.key, person(p)])),
+    people: [PEOPLE.A, PEOPLE.B].map(person)
+  });
+  app.jira.setConnect(fakeJira);
+
   const reset = async ({ settings = null, period = AUGUST } = {}) => {
     storage.clear();
     Object.assign(state, {
       settings: emptySettings(), settingsNote: null, bindings: {}, skipped: [], error: null, datePattern: '',
-      site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to
+      site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to,
+      picked: null, jira: { phase: 'idle', message: '', slow: false, missing: [], guessed: [] }
     });
+    inputs.siteInput.value = '';
+    app.jira.setConnect(fakeJira);
     state.settingsRev++;
     inputs.fromInput.value = period.from;
     inputs.toInput.value = period.to;
@@ -71,6 +88,15 @@ export function startDemo(app, storage) {
   const open = (page, extra) => async () => { await withCsv({ settings: SETTINGS }); app.go(page, extra); };
 
   const SCENARIOS = [
+    ['Jira', 'Ready to Start', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.render(); }],
+    ['Jira', 'Waiting for the bookmark', async () => {
+      await reset({ settings: SETTINGS });
+      state.settingsNote = null;
+      app.jira.setConnect(() => ({ ready: new Promise(() => {}), fetch: () => new Promise(() => {}), close() {}, closed: false }));
+      app.jira.start();
+    }],
+    ['Jira', 'Excel ready', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); await idle(app); app.render(); }],
+    ['Jira', 'Bridge error', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.jira.setConnect(() => { throw new Error('Your browser blocked the Jira tab. Allow pop-ups for this page, then press Start again.'); }); await app.jira.start(); }],
     ['Start', 'No file, no settings', () => reset()],
     ['Start', 'Settings just loaded', async () => { await reset({ settings: SETTINGS }); app.render(); }],
     ['Start', 'Three months — JQL per month', async () => { await reset({ settings: SETTINGS, period: { from: '2026-06-01', to: '2026-08-31' } }); state.settingsNote = null; app.render(); }],

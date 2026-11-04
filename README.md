@@ -13,21 +13,26 @@ the page is not allowed to connect to any server.
 2. **Load your team settings** (first time only). Click *Load settings file* and
    pick `worklogs-settings.json`. Ask your team lead for this file. The browser
    remembers it, so you only do this once.
-3. **Choose the period.** By default it is last month. If you pick several
-   months, export one CSV per month (Jira gives at most 1000 issues per file).
-4. **Get the CSV from Jira.**
-   - Click *Copy JQL* and paste it into Jira's issue search (or open your
-     team's saved filter).
-   - Choose **⋯ → Export → CSV (all fields)**. Do not use "Current fields" —
-     it leaves the worklogs out.
-5. **Upload the CSV.** Drag it onto the page or click *Browse files*. You can
-   upload several files at once; duplicates are merged.
-6. **Fix what the page asks about**, if anything:
-   - *Columns aren't in this CSV* — pick a column from your file for each one,
-     or skip them.
-   - *Projects without a group* — type a group name for each project.
-   - *Authors show as "Unknown"* — follow the steps to look them up in Jira.
+3. **Choose the period.** By default it is last month.
+4. **Tick the people** and check the Jira site (it comes from the settings
+   file). Add someone with *Add* if they are missing — then save the settings
+   file to pass it on.
+5. **Press Start.** Jira opens in a new tab. The first time, drag the
+   *Worklogs bridge* button to your bookmarks bar (it is under *First time?*).
+   In the Jira tab, click that bookmark. The page then reads the worklogs from
+   Jira through that tab, with your own Jira sign-in.
+6. **Fix what the page asks about**, if anything: people not found in Jira,
+   projects without a group.
 7. **Click *Download Excel*.** Use *Preview* first if you want to see the rows.
+
+The bookmark only reads from Jira (searches, worklogs, users, the field list)
+and only answers this page. The page itself still connects to nothing. A
+bookmark dragged from one address (say `localhost`) only answers that address,
+so the GitHub Pages page needs its own.
+
+**No bookmark?** *Or upload a CSV* gives the old way: copy the JQL, export
+**⋯ → Export → CSV (all fields)** from Jira (one file per month) and drop the
+file on the page.
 
 ## The settings file
 
@@ -35,6 +40,8 @@ The page itself contains no names or emails. All team data lives in
 `worklogs-settings.json`:
 
 - the team roster (emails),
+- the Jira site,
+- the Jira accounts found for the emails (filled in by the page),
 - team groups and project groups,
 - the team's JQL filter,
 - people found for old Jira accounts,

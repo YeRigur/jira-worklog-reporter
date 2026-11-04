@@ -77,7 +77,7 @@ export function jiraPanel(app) {
 
   return h('div', { class: 'tjira' },
     people, siteRow,
-    h('button', { class: 'is-primary tjira__start', disabled: !canStart, onclick: app.jira.start }, icon('right', 16), working ? 'Working…' : 'Start'),
+    h('button', { class: 'tdl tjira__start', disabled: !canStart, onclick: app.jira.start }, icon('right', 16), working ? 'Working…' : 'Start'),
     picked.length ? null : h('div', { class: 'thelp', text: 'Pick at least one person.' }),
     status, result, bookmark,
     h('div', { class: 'tlinks' }, link('Or upload a CSV', toCsv)));
