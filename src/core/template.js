@@ -1,5 +1,5 @@
 // The column template: every column the report has, in the order the extension
-// writes them, and where each one comes from in this CSV. What the CSV doesn't
+// writes them, and where each one comes from in this Jira. What Jira doesn't
 // have is flagged so it can be attached to another column by hand.
 
 const JIRA = 'jira-worklogs-export';
@@ -10,7 +10,7 @@ const exportFieldsSetting = (scriptsJson) => {
 };
 
 // Columns the export computes instead of reading a Jira field; `needs` are the
-// CSV-backed fields they read.
+// Jira fields they read.
 const COMPUTED = {
   _issueKey: { needs: [], from: 'the issue key' },
   _developer: { needs: [], from: 'the worklog author' },
@@ -19,7 +19,7 @@ const COMPUTED = {
   _developerProject: { needs: [], from: 'Teams assignments' },
   _developerDepartment: { needs: [], from: 'the display name' },
   _developerLocation: { needs: [], from: 'the display name' },
-  _developerJobTitle: { needs: [], from: 'nothing — a CSV has no job titles' },
+  _developerJobTitle: { needs: [], from: 'Jira’s user profile, when it shares one' },
   _developerHours: { needs: [], from: 'the worklog' },
   _worklogDate: { needs: [], from: 'the worklog date' },
   _worklogMonth: { needs: [], from: 'the worklog date' },
@@ -61,7 +61,7 @@ export function resolveTemplate(template, dataset, bindings = {}) {
       const computed = COMPUTED[entry.id] || { needs: [], from: 'the export' };
       const missing = computed.needs.filter((need) => !Object.hasOwn(specs, need));
       return missing.length
-        ? { ...row, status: 'missing', fieldId: entry.id, source: `${computed.from} — not in this CSV` }
+        ? { ...row, status: 'missing', fieldId: entry.id, source: `${computed.from} — not in this Jira` }
         : { ...row, status: 'computed', fieldId: entry.id, source: computed.from };
     }
 

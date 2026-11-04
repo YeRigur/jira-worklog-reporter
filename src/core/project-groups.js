@@ -31,7 +31,7 @@ export function projectsInFile(dataset) {
 }
 
 // Jira mode: the projects of the issues Jira's search returned, in the shape
-// projectsInFile reads, so the groups page works without a CSV.
+// projectsInFile reads, so the groups page lists them.
 export function projectsFromSearch(entries) {
   const projects = new Map();
   const issues = new Map();

@@ -1,16 +1,17 @@
 # Jira Worklogs Export
 
-A small web page that turns a Jira CSV export into the worklogs Excel report —
+A small web page that makes the worklogs Excel report straight from Jira —
 the same file the SimpleLife Chrome extension makes.
 
-Everything happens in your browser. The file you upload is never sent anywhere:
-the page is not allowed to connect to any server.
+Everything happens in your browser. The page itself is not allowed to connect
+to any server: it reads Jira through your own Jira tab, with a bookmark (the
+*Worklogs bridge*), using your own sign-in.
 
 ## How to use it
 
 1. **Open the page.** Go to the site (GitHub Pages) — it is a single page,
    `index.html`.
-2. **Load your team settings** (first time only). Click *Load settings file* and
+2. **Load your team settings** (first time only). Click *Load file* (step 1) and
    pick `worklogs-settings-<site>.json` (for example `worklogs-settings-nbslvivws.json`). Ask your team lead for this file. The browser
    remembers it, so you only do this once.
 3. **Choose the period.** By default it is last month.
@@ -44,10 +45,6 @@ when the page changes — only a new `protocol` there asks you to drag it again.
 bookmark dragged from one address (say `localhost`) only answers that address,
 so the GitHub Pages page needs its own.
 
-**No bookmark?** *Or upload a CSV* gives the old way: copy the JQL, export
-**⋯ → Export → CSV (all fields)** from Jira (one file per month) and drop the
-file on the page.
-
 ## The settings file
 
 The page itself contains no names or emails. All team data lives in
@@ -57,9 +54,8 @@ The page itself contains no names or emails. All team data lives in
 - the Jira site,
 - the Jira accounts found for the emails (filled in by the page),
 - team groups and project groups,
-- the team's JQL filter,
-- people found for old Jira accounts,
-- columns you mapped by hand.
+- the team's filter (JQL) — the people it names are ticked at first,
+- columns you mapped by hand, per Jira site.
 
 Save it with *Settings → Save settings file* and share it only with your team.
 **Never put it in this repository** (`.gitignore` already blocks it).
@@ -106,16 +102,18 @@ Folder layout:
 index.html        the page
 styles/           theme.css (colours, fonts), base.css (layout, components), dev.css (demo panel)
 src/main.js       starts the page
-src/config/       public defaults: the column list and the default JQL
+src/config/       public defaults: the column list (catalog.js) and the bridge (jira-bridge.js)
 src/vendor/       the extension's own export code, unchanged
-src/core/         the logic: reading the CSV, dates, columns, people, periods
-src/app/          page state, settings storage, building the Excel
+src/core/         the logic: the bridge, accounts, columns, coverage, periods, settings
+src/app/          page state, settings storage, the run through the bridge, building the Excel
 src/ui/           what is drawn on screen; one file per screen in ui/pages/
 src/dev/          the ?demo mode
-tests/            automated tests; the sample data is made up
-tools/            helpers: a local server and scripts to compare Excel files
+tests/            automated tests; the sample data is made up, and tests/support/fake-jira
+                  is a stand-in Jira over it (also used by ?demo)
+tools/            helpers: a local server and a script to compare two Excel files
 ```
 
-How it works in short: the CSV is read into memory, a small stand-in for the
-Jira API answers the questions the extension's export code asks, and that
-code builds the Excel. The preview and the download are the same file.
+How it works in short: the bookmark in the Jira tab runs the page's read-only
+REST calls with your sign-in and hands the answers back; the extension's own
+export code asks those questions and builds the Excel. The preview and the
+download are the same file.

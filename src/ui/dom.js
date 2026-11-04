@@ -90,7 +90,7 @@ export async function copyText(text) {
   }
 }
 
-export const pickFiles = (accept = '.csv,text/csv') => new Promise((resolve) => {
+export const pickFiles = (accept = '.json,application/json') => new Promise((resolve) => {
   const input = h('input', { type: 'file', accept, style: 'display:none' });
   input.multiple = true;
   input.addEventListener('change', () => { resolve([...(input.files || [])]); input.remove(); });

@@ -19,9 +19,8 @@ export function buildPreview(sheets, { rows = 8 } = {}) {
   });
 }
 
-// Columns that reached the file with nothing in them, by header. A column the
-// CSV has but nobody filled in Jira looks exactly like a column the CSV hasn't
-// got — except the page can only tell the difference here, after the run.
+// Columns that reached the Excel with nothing in them, by header: a field
+// nobody filled in Jira for these issues — the page can only tell after the run.
 // A header that carries a value on any sheet doesn't count.
 export function emptyColumns(preview) {
   const empty = new Map();

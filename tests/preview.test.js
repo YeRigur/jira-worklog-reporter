@@ -2,9 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalog } from '../src/config/catalog.js';
 import { buildPreview, emptyColumns } from '../src/core/preview.js';
-import { buildDataset } from '../src/core/dataset.js';
-import { createJiraEmulator } from '../src/core/emulator.js';
-import { authorMetadata } from '../src/core/people.js';
+import { buildDataset } from './support/fake-jira/dataset.js';
+import { createJiraEmulator } from './support/fake-jira/emulator.js';
 import { fieldIdsFromCatalog, buildExportConfig } from '../src/core/export-config.js';
 import { csvFile } from './support/helpers.js';
 import { HEADERS, ROWS } from './fixtures/synthetic.js';
@@ -42,7 +41,7 @@ test('a sheet without rows flags nothing — there is no column to blame yet', (
 
 test('every sheet of the workbook is previewed, in the writer’s order', async () => {
   const dataset = buildDataset([csvFile('synthetic.csv', HEADERS, ROWS)], { fieldIds: fieldIdsFromCatalog(SCRIPTS_JSON) });
-  const { meta } = authorMetadata(dataset, SCRIPTS_JSON);
+  const meta = Object.fromEntries(Object.keys(dataset.authors).map((key) => [key, { displayName: dataset.names[key] || '', email: '' }]));
   const authors = Object.fromEntries(Object.entries(meta).map(([key, m]) => [key, { accountId: key, displayName: m.displayName, emailAddress: m.email }]));
   const config = buildExportConfig({ scriptsJson: SCRIPTS_JSON, dataset, meta, dateFrom: '2026-08-01', dateTo: '2026-08-31', withSummary: true });
   const result = await runExtensionExport({ config, origin: dataset.origin, fetch: createJiraEmulator({ dataset, authors, origin: dataset.origin }) });

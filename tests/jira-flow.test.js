@@ -1,16 +1,16 @@
-// The Jira mode end to end, against a fake Jira holding the synthetic data:
-// it must make the same Details rows as the CSV path makes of that data.
+// Jira mode end to end, against a fake Jira holding the synthetic data: the
+// page's way (accounts, field list, cache) must make the same Details rows as
+// the extension's code fed straight from the same data.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalog } from '../src/config/catalog.js';
-import { buildDataset } from '../src/core/dataset.js';
-import { createJiraEmulator } from '../src/core/emulator.js';
-import { authorMetadata } from '../src/core/people.js';
+import { buildDataset } from './support/fake-jira/dataset.js';
+import { createJiraEmulator } from './support/fake-jira/emulator.js';
 import { fieldIdsFromCatalog, buildExportConfig, buildJiraExportConfig } from '../src/core/export-config.js';
 import { withSettings, emptySettings } from '../src/core/settings.js';
 import { createFetchCache } from '../src/core/fetch-cache.js';
 import { resolveAccounts } from '../src/core/accounts.js';
-import { createFakeJira } from '../src/dev/fake-jira.js';
+import { createFakeJira } from './support/fake-jira/fake-jira.js';
 import { csvFile } from './support/helpers.js';
 import { HEADERS, ROWS, PEOPLE } from './fixtures/synthetic.js';
 import { runExtensionExport } from './support/export-harness.js';
@@ -32,9 +32,10 @@ const detailRows = (result) => {
   return rows.map((r) => `${r[key]} ${r[hours]}`).sort();
 };
 
-test('the Jira mode makes the Details rows the CSV path makes, and replays from the cache', async () => {
-  // The CSV path, as the converter runs it, kept to the three roster people.
-  const { meta } = authorMetadata(dataset, scriptsJson, {});
+test('the page’s way makes the same Details rows as the data itself, and replays from the cache', async () => {
+  // The same data served straight by the fake Jira to the extension's code —
+  // no bridge, no cache, no account lookup — kept to the three roster people.
+  const meta = Object.fromEntries([A, B, C, D].map((p) => [p.key, { displayName: p.name, email: p.email }]));
   const csvAuthors = Object.fromEntries(Object.entries(meta).map(([key, m]) => [key, { accountId: key, displayName: m.displayName, emailAddress: m.email }]));
   const csvConfig = buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo, withSummary: true, users: [A.key, B.key, C.key] });
   const viaCsv = await runExtensionExport({ config: csvConfig, origin: dataset.origin, fetch: createJiraEmulator({ dataset, authors: csvAuthors, origin: dataset.origin }) });
@@ -53,7 +54,7 @@ test('the Jira mode makes the Details rows the CSV path makes, and replays from 
   });
   const viaJira = await runExtensionExport({ config, origin: `https://${jira.site}`, fetch });
   assert.equal(viaJira.ok, true, viaJira.message);
-  assert.ok(detailRows(viaCsv).length >= 3, 'the CSV path has rows to compare');
+  assert.ok(detailRows(viaCsv).length >= 3, 'there are rows to compare');
   assert.deepEqual(detailRows(viaJira), detailRows(viaCsv));
 
   const asked = fetch.entries().length;

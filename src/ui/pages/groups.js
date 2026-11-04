@@ -18,7 +18,7 @@ export function groupsPage(app, { ds }) {
     return h('div', { class: `tres${current ? ' is-ok' : ' is-warn'}` }, icon(current ? 'check' : 'alert', 16),
       h('span', { class: 'x' },
         h('b', { class: 'tkey', text: p.key }),
-        h('small', { text: `${p.name || 'no name in the CSV'} · ${plural(p.issues, 'issue')} in this file` }),
+        h('small', { text: `${p.name || 'no name from Jira'} · ${plural(p.issues, 'issue')} in this export` }),
         input),
       current ? null : (p.name ? link('Use project name', () => { app.setGroup(p.key, p.name); app.render(); }) : null));
   };
@@ -29,7 +29,7 @@ export function groupsPage(app, { ds }) {
     hint('“Project group” isn’t a Jira field — each project key gets the name the dashboard groups by. Type a name or pick one already used; several projects can share a group. Kept on this computer; save the settings file to pass it on.'),
     h('datalist', { id: listId }, ...groupNames(groups).map((n) => h('option', { value: n }))),
     h('div', { class: 'tgrid tgrid--wide' }, ...projects.map(row)),
-    elsewhere.length ? h('div', { class: 'tnote' }, `Also in the settings, not in this file: ${elsewhere.map(({ k, g }) => `${k} → ${g}`).join(', ')}`) : null,
+    elsewhere.length ? h('div', { class: 'tnote' }, `Also in the settings, not in this export: ${elsewhere.map(({ k, g }) => `${k} → ${g}`).join(', ')}`) : null,
     settingsNote(),
     actions(
       doneButton(),

@@ -1,6 +1,6 @@
-// Which CSV column could fill a report column the file doesn't have: names
-// that look alike, how many issues carry a value, and one example. That is
-// what a person needs to pick the right field out of a few hundred.
+// Which Jira field could fill a report column Jira has no field for: names
+// that look alike. With how full each one is (coverage.js), that is what a
+// person needs to pick the right field out of a few hundred.
 
 const FILLER = new Set(['of', 'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'on', 'by', 'with']);
 
@@ -44,19 +44,5 @@ export function searchFields(query, fields) {
     const own = name.split(/[^a-z0-9]+/).filter(Boolean);
     return parts.every((p) => own.some((w) => w.startsWith(p)));
   });
-}
-
-export function fieldCoverage(dataset, fieldId) {
-  const spec = Object.hasOwn(dataset.model.specs, fieldId) ? dataset.model.specs[fieldId] : null;
-  const indices = spec ? (spec.indices || Object.values(spec.parts || {})) : [];
-  let filled = 0;
-  let sample = '';
-  for (const issue of dataset.issues) {
-    const value = indices.map((i) => String(issue.row[i] ?? '').trim()).find(Boolean);
-    if (!value) continue;
-    filled++;
-    if (!sample) sample = value;
-  }
-  return { filled, total: dataset.issues.length, sample };
 }
 

@@ -1,9 +1,8 @@
 import { buildColumnTemplate, resolveTemplate, applyTemplate } from './template.js';
 
 // The config worklogs-export.js receives — what the extension's configurator
-// and runner.js would build — computed from scripts.json and the CSV alone.
-// People and projects are scoped by the JQL the CSV was exported with, so
-// every worklog author in the file is exported.
+// and runner.js would build — from scripts.json, Jira's field list and the
+// people ticked on the page.
 
 const JIRA = 'jira-worklogs-export';
 
@@ -29,7 +28,7 @@ export function exportDefaults(scriptsJson, { site = '', fields = [] }) {
   const fieldsSetting = settingOf(scriptsJson, 'exportFields');
   const staticOptions = (fieldsSetting.options || []).filter((o) => o && o.value);
   const known = new Set(staticOptions.map((o) => o.value));
-  // Same merge as the configurator: catalog labels win, CSV-only fields follow.
+  // Same merge as the configurator: catalog labels win, Jira's own fields follow.
   const options = [
     ...staticOptions.map((o) => ({ value: o.value, label: o.label || o.value })),
     ...fields.filter((f) => !known.has(f.id)).map((f) => ({ value: f.id, label: f.name }))
@@ -67,7 +66,7 @@ export function buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo
   return {
     dateFrom,
     dateTo,
-    // Everyone in the file, unless the run is limited to some authors.
+    // The people given; without them, every author the field list knows.
     users: users || Object.keys(dataset.authors),
     sheets,
     exportFields,
@@ -81,8 +80,8 @@ export function buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo
 }
 
 
-// Jira mode has no CSV: Jira's field list (/rest/api/3/field) stands in for
-// the CSV's columns, and every field it lists can be asked for.
+// Jira's field list (/rest/api/3/field) is the model the column template
+// reads: every field it lists can be asked for.
 export function jiraModel(fields) {
   const list = (Array.isArray(fields) ? fields : [])
     .filter((f) => f && f.id)
@@ -90,7 +89,7 @@ export function jiraModel(fields) {
   return { fields: list, specs: Object.fromEntries(list.map((f) => [f.id, { kind: 'jira' }])), datePattern: '' };
 }
 
-// Columns attached by hand, for Jira mode. They were made on a CSV, where a
+// Columns attached by hand. Older settings files made them on a CSV, where a
 // column is "csv:<name>": that stands for the Jira field with that name. A
 // field id is taken as it is, and "" still means "leave it empty".
 export function jiraBindings(bindings, fields) {

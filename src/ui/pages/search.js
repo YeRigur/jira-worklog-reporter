@@ -1,5 +1,5 @@
-// Picking the CSV column a report column reads: suggestions, search over all
-// the file's columns, and how many issues each one actually fills.
+// Picking the Jira field a report column reads: suggestions, search over all
+// of Jira's fields, and how many of the sample issues each one actually fills.
 import { h, icon } from '../dom.js';
 import { suggestFields, searchFields } from '../../core/suggest.js';
 import { plural } from '../../core/format.js';
@@ -32,7 +32,7 @@ export function searchPage(app, ctx) {
   paintSearch(app);
   return [pageHead(row.label, state.searchBack),
     h('label', { class: 'tsearch' }, icon('search', 15), app.inputs.searchInput,
-      h('span', { class: 'tsearch__count', text: plural(pickable(ctx.ds, []).length, 'column') })),
+      h('span', { class: 'tsearch__count', text: plural(pickable(ctx.ds, []).length, 'Jira field') })),
     app.inputs.searchBody];
 }
 
@@ -59,18 +59,18 @@ export function paintSearch(app) {
   const def = defaultOf(app.template, ds, state.bindings, row);
   const escape = isProblem(def)
     ? { value: '#skip', ...leaveText(def) }
-    : { value: '#auto', title: def.status === 'computed' ? 'Keep it computed' : `Keep “${def.source}”`, sub: def.status === 'computed' ? `from ${def.source}` : 'the column the CSV already has' };
+    : { value: '#auto', title: def.status === 'computed' ? 'Keep it computed' : `Keep “${def.source}”`, sub: def.status === 'computed' ? `from ${def.source}` : 'the field it finds in Jira by itself' };
   const picked = state.searchPick;
   const pickedName = picked && !picked.startsWith('#') ? (ds.model.fields.find((f) => f.id === picked)?.name || picked) : '';
   app.inputs.searchBody.replaceChildren(...[
     suggested.length ? h('div', { class: 'tgrp', text: 'Suggested' }) : null,
     suggested.length ? h('div', { class: 'tresults tresults--few' }, ...suggested.map((f) => fieldOption({ f, c: cov(f.id) }))) : null,
-    h('div', { class: 'tgrp', text: q ? (shown.length ? `Matching “${q}”` : `Nothing matches “${q}”`) : 'All columns · most filled first' }),
+    h('div', { class: 'tgrp', text: q ? (shown.length ? `Matching “${q}”` : `Nothing matches “${q}”`) : 'All Jira fields · most filled first' }),
     h('div', { class: 'tresults' }, ...shown.map(fieldOption)),
     found.length > shown.length ? h('div', { class: 'tmore', text: `${found.length - shown.length} more — type to narrow down` }) : null,
     h('div', { class: 'tgrp', text: 'Or' }),
     h('div', { class: 'tresults tresults--few' }, option(escape.value, escape.title, escape.sub, '', false)),
     actions(h('button', { class: 'tdl', disabled: !picked, onclick: () => { applyChoice(app, row, picked); app.go(state.searchBack); } },
-      picked.startsWith('#') ? escape.title : (pickedName ? `Use “${pickedName}”` : 'Select a column')))
+      picked.startsWith('#') ? escape.title : (pickedName ? `Use “${pickedName}”` : 'Select a field')))
   ].filter(Boolean));
 }

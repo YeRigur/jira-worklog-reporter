@@ -37,6 +37,6 @@ export function previewTable(app) {
             h('span', { class: 'cell', title: rawText(row[i]), text: cellText(row[i]) })))))))),
     h('div', { class: 'prev__foot' },
       h('span', { text: `${sheet.header.length} columns · showing ${sheet.rows.length} of ${sheet.total} rows` }),
-      emptyCount ? h('span', { class: 'prev__warn', text: `${emptyCount} column${emptyCount === 1 ? ' stays' : 's stay'} empty in this file` }) : null,
+      emptyCount ? h('span', { class: 'prev__warn', text: `${emptyCount} column${emptyCount === 1 ? ' stays' : 's stay'} empty in this Excel` }) : null,
       stale ? h('span', { text: 'updating…' }) : null));
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildColumnModel, shapeFields } from '../src/core/columns.js';
+import { buildColumnModel, shapeFields } from './support/fake-jira/columns.js';
 
 process.env.TZ = 'Europe/Kyiv';
 

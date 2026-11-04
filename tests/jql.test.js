@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseExportJql, matchesJql } from '../src/core/jql.js';
+import { parseExportJql, matchesJql } from './support/fake-jira/jql.js';
 
 test('the probe query matches every issue', () => {
   assert.deepEqual(parseExportJql('order by created DESC'), { kind: 'all' });

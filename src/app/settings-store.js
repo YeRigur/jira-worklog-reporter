@@ -1,7 +1,7 @@
-// The settings file: roster, Teams assignments, the filter, people behind old
-// Jira keys, project groups, and per site the columns attached by hand and the
-// ones gone without. Kept on this computer once loaded; saved back as a file
-// to pass on.
+// The settings file: the Jira site, roster, Teams assignments, the team's
+// filter, the accounts found in Jira, project groups, and per site the columns
+// attached by hand and the ones gone without. Kept on this computer once
+// loaded; saved back as a file to pass on.
 import { emptySettings, parseSettings, mergeSettings, emailsIn, settingsFileName } from '../core/settings.js';
 import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
@@ -31,25 +31,12 @@ export function createSettingsStore(app) {
     state.settings.sites[siteKey()] = { ...siteSettings(), ...patch };
     keepSettings();
   };
-  // Builds before the settings file kept these under their own keys.
-  const legacy = (key, fallback) => {
-    try { return app.storage.getItem(`${key}:${siteKey()}`) || fallback; } catch { return fallback; }
-  };
-
-  const loadBindings = () => {
-    const own = state.settings.sites[siteKey()];
-    try { state.bindings = own ? { ...own.bindings } : JSON.parse(legacy('simplelife-worklogs-columns', '{}')); } catch { state.bindings = {}; }
-  };
+  const loadBindings = () => { state.bindings = { ...siteSettings().bindings }; };
   const saveBindings = () => writeSite({ bindings: { ...state.bindings } });
 
-  // Columns gone without, one by one, so next month's file asks only about a
-  // column nobody has decided on yet.
-  const loadSkipped = () => {
-    const own = state.settings.sites[siteKey()];
-    if (own) { state.skipped = [...own.skipped]; return; }
-    const raw = legacy('simplelife-worklogs-ack', '');
-    try { state.skipped = raw.startsWith('[') ? JSON.parse(raw) : raw.split('|').filter(Boolean); } catch { state.skipped = []; }
-  };
+  // Columns gone without, one by one, so next month asks only about a column
+  // nobody has decided on yet.
+  const loadSkipped = () => { state.skipped = [...siteSettings().skipped]; };
   const saveSkipped = () => writeSite({ skipped: [...state.skipped] });
   const skip = (keys) => { state.skipped = [...new Set([...state.skipped, ...keys])]; saveSkipped(); };
   const unskip = (key) => { state.skipped = state.skipped.filter((k) => k !== key); saveSkipped(); };
@@ -60,7 +47,7 @@ export function createSettingsStore(app) {
   const applySettings = (incoming, note) => {
     state.settings = mergeSettings(state.settings, incoming);
     keepSettings();
-    if (state.dataset) reloadSiteChoices();
+    reloadSiteChoices();
     state.settingsNote = { ok: true, text: note };
     state.result = null;
   };
@@ -85,7 +72,7 @@ export function createSettingsStore(app) {
       Object.assign(state, { preview: null, previewing: null, result: null, savedSig: '', savedAs: '' });
       state.jira = freshJira();
       state.projectGroup = '';
-      if (state.dataset) reloadSiteChoices();
+      reloadSiteChoices();
       state.settingsNote = { ok: true, text: `Switched to “${name}”: ${plural(s.roster.length, 'person', 'people')}${s.site ? ` on ${s.site}` : ''}.` };
     } catch (e) {
       state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
@@ -96,7 +83,7 @@ export function createSettingsStore(app) {
     try {
       const s = parseSettings(text);
       keepName(name);
-      applySettings(s, `Loaded “${name}”: ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}, ${plural(s.roster.length, 'roster email')}, ${plural(Object.keys(s.teams).length, 'team assignment')}, ${plural(Object.keys(s.people).length, 'person', 'people')}.`);
+      applySettings(s, `Loaded “${name}”: ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}, ${plural(s.roster.length, 'roster email')}, ${plural(Object.keys(s.teams).length, 'team assignment')}.`);
     } catch (e) {
       state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
     }
@@ -110,29 +97,15 @@ export function createSettingsStore(app) {
     app.render();
   };
 
-  // What the console lookup script printed, pasted back.
-  const pasteLookup = () => {
-    try {
-      const s = parseSettings(state.lookupText);
-      const found = Object.values(s.people).filter((p) => p.name || p.email).length;
-      if (!found) throw new Error('No people in it — run the script on a Jira page you are signed in to.');
-      applySettings({ ...emptySettings(), people: s.people }, `Added ${plural(found, 'person', 'people')} found by Jira. Save the settings file to keep them for others.`);
-      state.lookupText = '';
-    } catch (e) {
-      state.settingsNote = { ok: false, text: e.message };
-    }
-    app.render();
-  };
-
-  // The team's filter: Copy JQL hands out exactly this, and the people it
-  // names are the team, so they join the roster for author emails.
+  // The team's filter: the people it names are the team — ticked at first,
+  // and on the roster.
   const saveJql = (text) => {
     const added = emailsIn(text).filter((e) => !state.settings.roster.includes(e));
     state.settings.jql = text;
     state.settings.roster = [...state.settings.roster, ...added];
     keepSettings();
     state.result = null;
-    state.settingsNote = { ok: true, text: text ? `Filter saved${added.length ? `; ${plural(added.length, 'new email')} joined the roster` : ''}.` : 'Filter cleared — Copy JQL gives the public one.' };
+    state.settingsNote = { ok: true, text: text ? `Filter saved${added.length ? `; ${plural(added.length, 'new email')} joined the roster` : ''}.` : 'Filter cleared — everyone on the roster is ticked at first.' };
     app.render();
   };
 
@@ -143,7 +116,7 @@ export function createSettingsStore(app) {
   };
 
   const hasSettings = () => Boolean(state.settings.roster.length || Object.keys(state.settings.teams).length
-    || Object.keys(state.settings.people).length || Object.keys(state.settings.projectGroups || {}).length);
+    || Object.keys(state.settings.projectGroups || {}).length);
 
   // Jira mode: who is ticked. Until someone ticks by hand, the people the
   // team's filter names — or, without a filter, the whole roster.
@@ -182,6 +155,7 @@ export function createSettingsStore(app) {
   };
 
   state.settings = read();
+  reloadSiteChoices();
   try { state.settingsName = app.storage.getItem(NAME_KEY) || ''; } catch { state.settingsName = ''; }
   try {
     const kept = JSON.parse(app.storage.getItem(PICKED_KEY) || 'null');
@@ -190,7 +164,7 @@ export function createSettingsStore(app) {
 
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
-    applySettings, loadSettingsText, replaceSettingsText, saveSettingsFile, pasteLookup, saveJql, setGroup, hasSettings,
+    applySettings, loadSettingsText, replaceSettingsText, saveSettingsFile, saveJql, setGroup, hasSettings,
     pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts, rememberSite
   };
 }

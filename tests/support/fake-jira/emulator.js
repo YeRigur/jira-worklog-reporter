@@ -29,7 +29,9 @@ export function createJiraEmulator({ dataset, authors = {}, projects = [], origi
     const start = body.nextPageToken ? Number(String(body.nextPageToken).slice(2)) : 0;
     const size = Math.max(1, Number(body.maxResults) || 50);
     const page = matches.slice(start, start + size);
-    const fields = Array.isArray(body.fields) ? body.fields : [];
+    const asked = Array.isArray(body.fields) ? body.fields : [];
+    // "*all", as Jira takes it: every field the file has.
+    const fields = asked.includes('*all') ? Object.keys(dataset.model.specs) : asked;
     const out = {
       issues: page.map((i) => ({ id: i.id, key: i.key, fields: shapeFields(dataset.model, i.row, fields) })),
       isLast: start + size >= matches.length

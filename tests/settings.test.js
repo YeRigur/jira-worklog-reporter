@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import { parseSettings, mergeSettings, withSettings, settingsFromExtension, lookupScript, publicScriptsJson, emailsIn, settingsFileName } from '../src/core/settings.js';
+import { parseSettings, mergeSettings, withSettings, settingsFromExtension, publicScriptsJson, emailsIn, settingsFileName } from '../src/core/settings.js';
 
 const EXT = {
   projectGroups: { 'Brand PGL': ['AC'] },
@@ -59,54 +58,9 @@ test('settings put the roster and teams back where the people code reads them', 
   assert.deepEqual(full.teams.groups, ['Team UA']);
 });
 
-test('the lookup script is valid JavaScript asking Jira for exactly these keys', () => {
-  const code = lookupScript(['ug:1', 'rk:2']);
-  assert.doesNotThrow(() => new vm.Script(code));
-  assert.match(code, /\/rest\/api\/3\/user\/bulk\/migration/);
-  assert.match(code, /"ug:1"/);
-  assert.match(code, /"rk:2"/);
-});
-
-test('the lookup script turns old keys into named people and hands them over', async () => {
-  const calls = [];
-  const fetch = async (url) => {
-    calls.push(url);
-    const body = url.includes('bulk/migration')
-      ? [{ key: 'ug:1', accountId: 'acc-1' }, { key: 'rk:2', accountId: 'acc-2' }]
-      : { displayName: url.includes('acc-1') ? 'Zrazok,Taras' : 'Other,Person', emailAddress: url.includes('acc-1') ? 'taras.zrazok@x.com' : undefined };
-    return { ok: true, json: async () => body };
-  };
-  let copied = '';
-  const ctx = vm.createContext({ fetch, encodeURIComponent, JSON, Object, Set, Map, Date, Math, console: { log() {}, error() {}, table() {} }, copy: (t) => { copied = t; } });
-  await vm.runInContext(lookupScript(['ug:1', 'rk:2']).replace(/;\s*$/, ''), ctx);
-  assert.match(calls[0], /bulk\/migration\?key=ug%3A1&key=rk%3A2/);
-  const s = parseSettings(copied);
-  assert.deepEqual(s.people['ug:1'], { name: 'Zrazok,Taras', email: 'taras.zrazok@x.com', accountId: 'acc-1' });
-  assert.equal(s.people['rk:2'].email, '');
-});
-
 test('the people of a filter are read out of its JQL', () => {
   assert.deepEqual(emailsIn('worklogAuthor in (\n"A.B@x.com",\n"c.d@x.com", "a.b@x.com"\n)'), ['a.b@x.com', 'c.d@x.com']);
   assert.deepEqual(emailsIn('project = AC'), []);
-});
-
-test('a key Jira can’t translate is found by its worklog: same issue, day and length', async () => {
-  const fetch = async (url) => {
-    if (url.includes('bulk/migration')) return { ok: true, json: async () => [] };
-    if (url.includes('/user?accountId=acc-9')) return { ok: true, json: async () => ({ accountId: 'acc-9', displayName: 'Prykladnyi,Petro', emailAddress: 'petro.s@x.com' }) };
-    if (url.includes('/user?')) return { ok: false, json: async () => ({}) };
-    if (url.includes('/issue/AB-2782/worklog')) {
-      return { ok: true, json: async () => ({ worklogs: [
-        { started: '2025-10-17T07:35:00.000+0300', timeSpentSeconds: 900, author: { accountId: 'acc-9', displayName: 'Prykladnyi,Petro' } },
-        { started: '2025-10-17T09:00:00.000+0300', timeSpentSeconds: 7200, author: { accountId: 'acc-1', displayName: 'Other' } }
-      ] }) };
-    }
-    return { ok: false, json: async () => ({}) };
-  };
-  let copied = '';
-  const ctx = vm.createContext({ fetch, encodeURIComponent, JSON, Object, Set, Map, Date, Math, console: { log() {}, error() {}, table() {} }, copy: (t) => { copied = t; } });
-  await vm.runInContext(lookupScript(['bbe642be-1'], { 'bbe642be-1': [{ issue: 'AB-2782', date: '2025-10-17', seconds: 900 }] }).replace(/;\s*$/, ''), ctx);
-  assert.deepEqual(parseSettings(copied).people['bbe642be-1'], { name: 'Prykladnyi,Petro', email: 'petro.s@x.com', accountId: 'acc-9' });
 });
 
 test('the Jira site and the accounts found for emails are read, cleaned and merged', () => {

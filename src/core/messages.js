@@ -1,17 +1,16 @@
-// The export's error messages talk about Jira, developer selection and its ↻
-// button; in the converter the data is a CSV and every author is exported,
-// so the known ones are reworded.
+// The export's error messages talk about the extension's developer selection
+// and its ↻ button; here they are reworded for the page.
 
-const NO_WORKLOGS_IN_PERIOD = 'No worklogs in the chosen period in this CSV. Check the period.';
+const NO_WORKLOGS_IN_PERIOD = 'The ticked people logged no time in this period. Check the period, the people or the project group.';
 
 const RULES = [
   [/^No worklogs found on\/after (\S+) anywhere you can see/,
-    (m) => `No worklogs on/after ${m[1]} in this CSV. Check the period, or export the CSV for these dates.`],
+    (m) => `Jira has no worklogs on/after ${m[1]} that you can see. Check the period, or that you are signed in to the right Jira.`],
   [/^Worklogs exist after \S+, but none were logged by the/, () => NO_WORKLOGS_IN_PERIOD],
   [/^Found \d+ issues with worklogs in range, but none were logged by the selected developers/, () => NO_WORKLOGS_IN_PERIOD],
-  [/^Search returns no issues at all/, () => 'This CSV has no issues.'],
-  [/^Jira search API returned an error/, () => 'The CSV couldn’t be read — details are in the browser console.'],
-  [/^Pick at least one developer\.$/, () => 'This CSV has no worklogs.']
+  [/^Search returns no issues at all/, () => 'Jira returned no issues at all — are you signed in to it in the Jira tab?'],
+  [/^Jira search API returned an error/, () => 'Jira’s search failed — sign in to Jira in that tab and press Start again. Details are in the browser console.'],
+  [/^Pick at least one developer\.$/, () => 'None of the ticked people were found in this Jira.']
 ];
 
 export function rewriteExportMessage(message) {
@@ -22,4 +21,3 @@ export function rewriteExportMessage(message) {
   }
   return text;
 }
-

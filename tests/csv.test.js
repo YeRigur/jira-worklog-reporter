@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsv, detectDelimiter, decodeCsvBytes, readCsvTable } from '../src/core/csv.js';
+import { parseCsv, detectDelimiter, decodeCsvBytes, readCsvTable } from './support/fake-jira/csv.js';
 
 test('quoted cells keep commas and doubled quotes', () => {
   assert.deepEqual(

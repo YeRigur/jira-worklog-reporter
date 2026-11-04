@@ -30,8 +30,7 @@ export function jiraStart(app, { note } = {}) {
     statusOf(app),
     columnsBlock(app),
     resultOf(app),
-    h('div', { class: 'tjv__foot' }, bookmarkPanel(app),
-      h('button', { class: 'tlinkbtn', onclick: () => { state.source = 'csv'; app.render(); } }, 'Or upload a CSV instead')));
+    h('div', { class: 'tjv__foot' }, bookmarkPanel(app)));
 }
 
 // Which settings file is in use, and a way to switch to another team's.
@@ -144,47 +143,26 @@ function projectsStep(app) {
     h('div', { class: 'thelp', text: keys.length ? `Only ${keys.join(', ')} — Jira is asked for these alone, and the file is named after the group.` : 'Every project the people logged time in.' }));
 }
 
-// After Start: each column of the report and the Jira field it comes from.
-// Columns attached in the settings are filled in; the rest can be picked or
-// left empty. Nothing is read from Jira's worklogs until Build Excel.
+// After Start: how the report's columns stand against this Jira, and the way
+// to the columns pages. Nothing is read from Jira's worklogs until Build Excel.
 function columnsBlock(app) {
-  const { state, link } = app;
+  const { state, link, go } = app;
   if (state.jira.phase !== 'mapping') return null;
-  const rows = app.jira.columns();
-  const fields = app.jira.fieldList();
-  const open = rows.filter((r) => r.status === 'missing' || r.status === 'taken');
-  const byHand = rows.filter((r) => r.status === 'bound' || r.status === 'empty');
-  const shown = state.columnsAll ? rows : [...open, ...byHand];
-  // A field feeds one column: the ones taken show whose they are.
-  const usedBy = new Map(rows.filter((r) => (r.status === 'auto' || r.status === 'bound') && r.fieldId).map((r) => [r.fieldId, r.label]));
-  const picker = (r) => h('select', {
-    class: 'tcol__pick', 'aria-label': `Jira field for ${r.label}`,
-    onchange: (e) => app.jira.setBinding(r.key, e.target.value)
-  },
-  open.includes(r) ? h('option', { value: '', text: 'Pick a Jira field…', selected: true, disabled: true }) : null,
-  h('option', { value: '', text: 'Leave empty', selected: r.status === 'empty' }),
-  ...fields.map((f) => {
-    const mine = (r.status === 'auto' || r.status === 'bound') && r.fieldId === f.id;
-    const other = !mine && usedBy.get(f.id);
-    return h('option', { value: f.id, text: other ? `${f.name} — used by ${other}` : f.name, selected: mine, disabled: Boolean(other) });
-  }));
-  const row = (r) => {
-    const tone = open.includes(r) ? 'warn' : 'ok';
-    return h('div', { class: `tcol tcol--${tone}` },
-      icon(tone === 'ok' ? 'check' : 'alert', 14),
-      h('span', { class: 'tcol__label', text: r.label }),
-      r.status === 'computed' ? h('span', { class: 'tcol__from', text: r.source }) : picker(r));
-  };
-  const found = rows.length - open.length;
-  return h('section', { class: 'tjv__cols' },
-    h('div', { class: 'tjv__head' }, icon('columns', 16), h('b', { text: 'Columns' }),
-      h('span', { class: 'tjv__aside' }, h('span', { class: `tperiodbox__sum${open.length ? ' is-warn' : ''}`, text: `${found} of ${rows.length} found` }))),
+  const ctx = app.jira.columnsContext();
+  if (!ctx) return null;
+  const open = ctx.problems.filter((r) => !state.skipped.includes(r.key));
+  const found = ctx.rows.length - ctx.problems.length;
+  return h('section', { class: `tjv__cols${open.length ? ' is-warn' : ''}` },
+    h('div', { class: 'tjv__head' }, icon(open.length ? 'alert' : 'check', 16), h('b', { text: 'Columns' }),
+      h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: `${found} of ${ctx.rows.length} found in Jira` }))),
     h('div', { class: 'thelp', text: open.length
-      ? `${plural(open.length, 'column')} ${open.length === 1 ? 'has' : 'have'} no field in this Jira — pick one or leave it empty. Your choice is kept for ${app.jira.site()}.`
-      : 'Every column has its Jira field. Change any below, or build the Excel.' }),
-    shown.length ? h('div', { class: 'tcols' }, ...shown.map(row)) : null,
-    link(state.columnsAll ? 'Show only the ones to check' : `Show all ${rows.length} columns`, () => { state.columnsAll = !state.columnsAll; app.render(); }),
-    h('button', { class: 'tdl tjv__go', onclick: app.jira.build }, icon('sheet', 16), 'Build Excel'));
+      ? `${plural(open.length, 'column')} ${open.length === 1 ? 'has' : 'have'} no field in this Jira. Pick one, or leave ${open.length === 1 ? 'it' : 'them'} empty — kept for ${app.jira.site()}.`
+      : 'Every column has its Jira field. Have a look, or build the Excel.' }),
+    h('div', { class: 'tjv__row' },
+      open.length
+        ? h('button', { class: 'tbtn', onclick: () => go('pick', { pickKeys: open.map((r) => r.key) }) }, icon('columns', 15), 'Check columns')
+        : link('Review columns', () => go('all')),
+      h('button', { class: 'tdl tjv__build', onclick: app.jira.build }, icon('sheet', 16), 'Build Excel')));
 }
 
 // Why Start is off, or what it will do.
@@ -215,14 +193,14 @@ function startBlock(app, working) {
 }
 
 function statusOf(app) {
-  const { state, link } = app;
+  const { state } = app;
   const j = state.jira;
   if (j.phase === 'error') return h('div', { class: 'terr', text: j.message });
   if (j.phase !== 'waiting') return null;
   return h('div', { class: 'tcallout tcallout--compact tcallout--info' }, icon('info', 16),
     h('div', { class: 'tcallout__body' },
       h('span', {}, 'In the Jira tab that just opened, click the ', h('b', { text: 'Worklogs bridge' }), ' bookmark.'),
-      j.slow ? h('span', {}, 'Nothing yet? Make sure you are signed in there, or ', link('upload a CSV instead', () => { state.source = 'csv'; app.render(); }), '.') : null));
+      j.slow ? h('span', {}, 'Nothing yet? Make sure you are signed in to Jira there, and that the bookmark is the latest one (below).') : null));
 }
 
 function resultOf(app) {

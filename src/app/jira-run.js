@@ -9,7 +9,10 @@ import { jiraBridge } from '../config/jira-bridge.js';
 import { createFetchCache } from '../core/fetch-cache.js';
 import { scopedFetch } from '../core/jql-scope.js';
 import { resolveAccounts } from '../core/accounts.js';
-import { buildJiraExportConfig, jiraColumns } from '../core/export-config.js';
+import { buildJiraExportConfig, jiraModel, jiraBindings } from '../core/export-config.js';
+import { resolveTemplate } from '../core/template.js';
+import { problemsOf, settled } from '../core/column-choice.js';
+import { fieldCoverage } from '../core/coverage.js';
 import { projectsFromSearch } from '../core/project-groups.js';
 import { withSettings } from '../core/settings.js';
 import { cleanSite } from '../core/format.js';
@@ -31,6 +34,7 @@ export function createJiraRun(app) {
   let cacheKey = '';
   let fields = null;
   let found = null;
+  let sample = [];
   const cache = createFetchCache((input, init) => bridge.fetch(input, init));
 
   const site = () => cleanSite(state.site || state.settings.site);
@@ -41,17 +45,36 @@ export function createJiraRun(app) {
   const set = (patch) => { Object.assign(state.jira, patch); app.render(); };
   const tell = (payload) => { if (bridge && !bridge.closed) bridge.status?.(payload); };
 
-  // Columns attached by hand for this site — on a CSV or here, in one place.
-  const siteBindings = () => state.settings.sites?.[site()]?.bindings || {};
-  const setBinding = (key, fieldId) => {
-    const own = state.settings.sites[site()] || { bindings: {}, skipped: [] };
-    state.settings.sites[site()] = { ...own, bindings: { ...own.bindings, [key]: fieldId } };
-    app.keepSettings();
-    app.render();
+  // The columns pages read this: Jira's fields as the "file", the sample
+  // issues for how full each one is, and the report's columns against them.
+  function columnsContext() {
+    if (!fields) return null;
+    const ds = { site: site(), model: jiraModel(fields), issues: sample };
+    const rows = resolveTemplate(app.template, ds, state.bindings);
+    const problems = problemsOf(rows);
+    const memo = new Map();
+    const cov = (id) => {
+      if (!memo.has(id)) memo.set(id, fieldCoverage(sample, id));
+      return memo.get(id);
+    };
+    return { ds, rows, problems, blocked: !settled(problems, state.skipped), empties: app.emptyNow(), cov };
+  }
+
+  // Columns attached by hand were made on a CSV ("csv:<name>"): here they
+  // stand for the Jira field of that name. What doesn't match stays as it is.
+  const loadColumns = () => {
+    app.reloadSiteChoices();
+    state.bindings = { ...state.bindings, ...jiraBindings(state.bindings, fields) };
   };
-  const columns = () => (fields ? jiraColumns({ scriptsJson: withSettings(catalog, state.settings), fields, bindings: siteBindings() }) : []);
-  const fieldList = () => (fields || []).map((f) => ({ id: String(f.id), name: String(f.name || f.id), custom: Boolean(f.custom) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Up to 100 of the people's issues with every field: no worklogs yet, just
+  // enough to show what each field holds.
+  async function loadSample(got) {
+    const ids = Object.values(got.accounts).slice(0, 80).map((id) => `"${id}"`).join(', ');
+    const jql = `worklogDate >= "${state.from}" AND worklogDate <= "${state.to}" AND worklogAuthor IN (${ids})`;
+    const res = await runFetch()('/rest/api/3/search/jql', { method: 'POST', body: JSON.stringify({ jql, maxResults: 100, fields: ['*all'] }) });
+    sample = res.ok ? ((await res.json()).issues || []) : [];
+  }
 
   // The Jira tab and its bookmark: reused while it is open, opened otherwise.
   async function ensureBridge() {
@@ -78,13 +101,17 @@ export function createJiraRun(app) {
   }
 
   const findPeople = async (emails) => {
-    const got = await resolveAccounts(cache, emails, state.settings.accounts);
+    // Accounts found before, and the people an older settings file names with one.
+    const fromPeople = Object.values(state.settings.people || {})
+      .filter((p) => p.email && p.accountId && p.accountId !== 'unknown')
+      .map((p) => [p.email, p.accountId]);
+    const got = await resolveAccounts(cache, emails, { ...Object.fromEntries(fromPeople), ...state.settings.accounts });
     app.rememberAccounts(got.accounts);
     return got;
   };
 
   const exportConfig = (emails, got) => buildJiraExportConfig({
-    scriptsJson: withSettings(catalog, state.settings), site: site(), fields, bindings: siteBindings(),
+    scriptsJson: withSettings(catalog, state.settings), site: site(), fields, bindings: state.bindings,
     dateFrom: state.from, dateTo: state.to, withSummary: app.withSummary(), meta: got.meta, teamEmails: emails,
     users: emails.map((e) => got.accounts[e]).filter(Boolean)
   });
@@ -106,6 +133,9 @@ export function createJiraRun(app) {
     try {
       found = await findPeople(people);
       await loadFields();
+      tell({ text: 'Looking at a few issues to check the columns…', pct: 4 });
+      await loadSample(found);
+      loadColumns();
     } catch (e) {
       set({ phase: 'error', message: e.message });
       tell({ error: true, text: e.message });
@@ -162,6 +192,7 @@ export function createJiraRun(app) {
       set({ missing: [...new Set([...state.jira.missing, ...got.missing])], guessed: [...new Set([...state.jira.guessed, ...got.guessed])] });
       if (!Object.keys(got.accounts).length) throw new Error(`Nobody in ${label} was found in this Jira.`);
       await loadFields();
+      if (!Object.keys(state.bindings).length) loadColumns();
       const made = await app.runOnce(exportConfig(emails, got), runFetch(), `https://${site()}`, true,
         { progress: true, onProgress, rename: tagged([label, state.projectGroup]) });
       if (!made.ok) throw new Error(made.message);
@@ -189,5 +220,5 @@ export function createJiraRun(app) {
   const projects = () => projectsFromSearch(cache.entries());
   const setConnect = (fn) => { connect = fn; bridge = null; bridgeSite = ''; };
 
-  return { start, build, groupReport, ensurePreview, download, signature, projects, site, setConnect, columns, fieldList, setBinding };
+  return { start, build, groupReport, ensurePreview, download, signature, projects, site, setConnect, columnsContext };
 }

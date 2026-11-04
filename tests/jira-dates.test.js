@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   compileDatePattern, detectDatePattern, toIsoDateTime, toIsoDate
-} from '../src/core/jira-dates.js';
+} from './support/fake-jira/jira-dates.js';
 
 process.env.TZ = 'Europe/Kyiv';
 

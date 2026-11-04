@@ -1,17 +1,16 @@
 // ?demo: every state the tool can be in, on synthetic data, one pick away — to
-// judge a design on all of them. Settings live in memory here, so the demo
-// never touches what this browser keeps for real use.
+// judge a design on all of them. Jira is a fake holding the synthetic data
+// (tests/support/fake-jira), and settings live in memory, so the demo never
+// touches Jira or what this browser keeps for real use.
 import { h } from '../ui/dom.js';
 import { emptySettings } from '../core/settings.js';
-import { resolveTemplate } from '../core/template.js';
-import { problemsOf } from '../core/column-choice.js';
 import { openSearch } from '../ui/pages/search.js';
+import { freshJira } from '../app/state.js';
+import { fieldIdsFromCatalog } from '../core/export-config.js';
 import { HEADERS, ROWS, PEOPLE } from '../../tests/fixtures/synthetic.js';
 import { toCsv } from '../../tests/support/helpers.js';
-import { createFakeJira } from './fake-jira.js';
-import { freshJira } from '../app/state.js';
-import { buildDataset } from '../core/dataset.js';
-import { fieldIdsFromCatalog } from '../core/export-config.js';
+import { createFakeJira } from '../../tests/support/fake-jira/fake-jira.js';
+import { buildDataset } from '../../tests/support/fake-jira/dataset.js';
 
 export function memoryStorage() {
   const m = new Map();
@@ -20,21 +19,11 @@ export function memoryStorage() {
 
 const AUGUST = { from: '2026-08-01', to: '2026-08-31' };
 const FILTER = `worklogDate >= startOfMonth(-1) AND worklogDate < startOfMonth()\nAND worklogAuthor in ("${PEOPLE.A.email}", "${PEOPLE.B.email}", "${PEOPLE.C.email}")`;
-const SETTINGS = { site: 'acme.atlassian.net', roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER, projectGroups: { 'Group A': ['AC'] }, groupByDomain: { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' } };
-const SETTINGS_DONE = {
-  ...SETTINGS,
-  projectGroups: { 'Group A': ['AC', 'ZZZ'], 'Group B': ['VC'] },
-  people: { [PEOPLE.B.key]: { name: PEOPLE.B.name, email: PEOPLE.B.email, accountId: PEOPLE.B.accountId } }
+const SETTINGS = {
+  site: 'acme.atlassian.net', roster: [PEOPLE.A.email, PEOPLE.B.email, PEOPLE.C.email], jql: FILTER,
+  projectGroups: { 'Group A': ['AC'] }, groupByDomain: { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' }
 };
-
-// The synthetic export, plus one issue whose worklog can't be read.
-const broken = [...ROWS[0]];
-broken[1] = 'AC-50'; broken[2] = '10050'; broken[0] = 'Imported task';
-broken[HEADERS.indexOf('Log Work')] = `;04/Aug/26 10:00 AM;${PEOPLE.A.key};not-a-number`;
-const CSV = toCsv(HEADERS, ROWS);
-const CSV_NOTES = toCsv(HEADERS, [...ROWS, broken]);
-const CSV_DATES = toCsv(['Summary', 'Issue key', 'Issue id', 'Issue Type', 'Status', 'Project key', 'Project name', 'Created', 'Updated', 'Log Work'],
-  [['Odd dates', 'AB-1', '1', 'Task', 'Done', 'AB', 'Alpha', '2026|08|03 at 9', '2026|08|04 at 10', `;2026|08|04 at 10;${PEOPLE.A.key};3600`]]);
+const SETTINGS_DONE = { ...SETTINGS, projectGroups: { 'Group A': ['AC', 'ZZZ'], 'Group B': ['VC'] } };
 
 const file = (name, text, type) => new File([text], name, { type });
 const idle = async (app) => {
@@ -44,100 +33,63 @@ const idle = async (app) => {
 export function startDemo(app, storage) {
   const { state, inputs } = app;
 
-  // Jira mode in the demo talks to a fake Jira holding the synthetic data;
-  // PEOPLE.C isn't in it, to show someone not found.
+  // The fake Jira holds the synthetic issues; PEOPLE.C isn't in it, to show
+  // someone not found.
   const person = (p) => ({ accountId: p.accountId, displayName: p.name, emailAddress: p.email });
   const everyone = [PEOPLE.A, PEOPLE.B, PEOPLE.C, PEOPLE.D];
+  const dataset = buildDataset([{ name: 'demo.csv', text: toCsv(HEADERS, ROWS), encoding: 'utf-8' }], { fieldIds: fieldIdsFromCatalog(app.catalog) });
   const fakeJira = () => createFakeJira({
-    dataset: buildDataset([{ name: 'demo.csv', text: CSV, encoding: 'utf-8' }], { fieldIds: fieldIdsFromCatalog(app.catalog) }),
+    dataset,
     authors: Object.fromEntries(everyone.map((p) => [p.key, person(p)])),
     people: [PEOPLE.A, PEOPLE.B].map(person)
   });
-  app.jira.setConnect(fakeJira);
 
   const reset = async ({ settings = null, period = AUGUST } = {}) => {
     storage.clear();
     Object.assign(state, {
-      settings: emptySettings(), settingsNote: null, bindings: {}, skipped: [], error: null, datePattern: '',
-      site: '', withSummary: null, lookupText: '', copiedMonths: [], monthPick: '', busy: false, progress: '', from: period.from, to: period.to,
-      picked: null, jira: freshJira(), settingsName: '', projectGroup: '', columnsAll: false, progressPct: 0
+      settings: emptySettings(), settingsNote: null, settingsName: '', bindings: {}, skipped: [],
+      site: '', withSummary: null, busy: false, progress: '', progressPct: 0, from: period.from, to: period.to,
+      picked: null, jira: freshJira(), projectGroup: '', preview: null, previewing: null, result: null,
+      savedSig: '', savedAs: '', page: 'main', pickKeys: [], emptyOk: false
     });
     inputs.siteInput.value = '';
-    app.jira.setConnect(fakeJira);
-    state.settingsRev++;
     inputs.fromInput.value = period.from;
     inputs.toInput.value = period.to;
-    app.startOver();
-    if (settings) await app.load([file('worklogs-settings.json', JSON.stringify(settings), 'application/json')]);
-  };
-  const withCsv = async (opts = {}, csv = CSV) => {
-    await reset(opts);
-    await app.load([file('jira-export-august.csv', csv, 'text/csv')]);
+    app.jira.setConnect(fakeJira);
+    state.settingsRev++;
+    if (settings) await app.load([file('worklogs-settings-acme.json', JSON.stringify(settings), 'application/json')]);
     state.settingsNote = null;
-    await idle(app);
     app.render();
   };
-  const problems = () => problemsOf(resolveTemplate(app.template, state.dataset, state.bindings));
-  const allSet = async () => {
-    await withCsv({ settings: SETTINGS_DONE });
-    app.skip(problems().map((r) => r.key));
-    state.emptyOk = true;
-    await idle(app);
-    app.render();
-    await idle(app);
-  };
-  const open = (page, extra) => async () => { await withCsv({ settings: SETTINGS }); app.go(page, extra); };
+  // Start pressed and the bookmark clicked: the columns are up.
+  const started = async (opts = { settings: SETTINGS }) => { await reset(opts); await app.jira.start(); };
+  const built = async (opts) => { await started(opts); app.jira.build(); await idle(app); app.render(); };
+  const problems = () => app.jira.columnsContext()?.problems || [];
 
   const SCENARIOS = [
-    ['Jira', 'Ready to Start', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.render(); }],
-    ['Jira', 'Waiting for the bookmark', async () => {
+    ['Start', 'No settings yet', () => reset()],
+    ['Start', 'Settings loaded — ready to Start', () => reset({ settings: SETTINGS })],
+    ['Start', 'One project group', async () => { await reset({ settings: SETTINGS }); state.projectGroup = 'Group A'; app.render(); }],
+    ['Start', 'Waiting for the bookmark', async () => {
       await reset({ settings: SETTINGS });
-      state.settingsNote = null;
-      app.jira.setConnect(() => ({ ready: new Promise(() => {}), fetch: () => new Promise(() => {}), close() {}, closed: false }));
+      app.jira.setConnect(() => ({ ready: new Promise(() => {}), fetch: () => new Promise(() => {}), status() {}, close() {}, closed: false }));
       app.jira.start();
     }],
-    ['Jira', 'Columns to check', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); }],
-    ['Jira', 'Excel ready', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.jira.start(); app.jira.build(); await idle(app); app.render(); }],
-    ['Jira', 'One project group', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; state.projectGroup = 'Group A'; await app.jira.start(); app.jira.build(); await idle(app); app.render(); }],
-    ['Jira', 'Bridge error', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.jira.setConnect(() => { throw new Error('Your browser blocked the Jira tab. Allow pop-ups for this page, then press Start again.'); }); await app.jira.start(); }],
-    ['Start', 'No file, no settings', () => reset()],
-    ['Start', 'Settings just loaded', async () => { await reset({ settings: SETTINGS }); app.render(); }],
-    ['Start', 'Three months — JQL per month', async () => { await reset({ settings: SETTINGS, period: { from: '2026-06-01', to: '2026-08-31' } }); state.settingsNote = null; app.render(); }],
-    ['Start', 'Not a CSV file', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.load([file('notes.txt', 'hello', 'text/plain')]); }],
-    ['Start', 'Unknown date format', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; await app.load([file('odd-dates.csv', CSV_DATES, 'text/csv')]); }],
-    ['Start', 'Settings page, no file yet', async () => { await reset({ settings: SETTINGS }); state.settingsNote = null; app.go('settings'); }],
-    ['Overview', 'Columns missing — download blocked', () => withCsv({ settings: SETTINGS })],
-    ['Overview', 'No settings — no roster', () => withCsv()],
-    ['Overview', 'Jira site unknown', async () => { await withCsv({ settings: SETTINGS }); state.dataset.site = ''; app.render(); }],
-    ['Overview', 'No worklogs in the period', () => withCsv({ settings: SETTINGS, period: { from: '2026-10-01', to: '2026-10-31' } })],
-    ['Overview', 'File notes (unreadable worklog)', () => withCsv({ settings: SETTINGS }, CSV_NOTES)],
-    ['Overview', 'Everything settled — ready', allSet],
-    ['Overview', 'Building…', async () => { await allSet(); state.busy = true; app.render(); }],
-    ['Overview', 'Downloaded', async () => { await allSet(); state.savedSig = app.signature(); state.savedAs = state.preview?.filename || ''; app.render(); }],
-    ['Columns', 'Resolve missing columns', async () => { await withCsv({ settings: SETTINGS }); app.go('pick', { pickKeys: problems().map((r) => r.key) }); }],
-    ['Columns', 'Missing columns — some decided', async () => {
-      await withCsv({ settings: SETTINGS });
-      const keys = problems().map((r) => r.key);
-      state.bindings[keys[0]] = 'csv:Market';
-      app.skip([keys[1]]);
-      app.go('pick', { pickKeys: keys });
+    ['Start', 'Bridge error', async () => {
+      await reset({ settings: SETTINGS });
+      app.jira.setConnect(() => { throw new Error('Your browser blocked the Jira tab. Allow pop-ups for this page, then press Start again.'); });
+      await app.jira.start();
     }],
-    ['Columns', 'Pick a column (search)', async () => { await withCsv({ settings: SETTINGS }); openSearch(app, state.dataset, problems()[0], 'pick'); }],
-    ['Columns', 'Search with a query', async () => {
-      await withCsv({ settings: SETTINGS });
-      openSearch(app, state.dataset, problems()[0], 'pick');
-      inputs.searchInput.value = state.searchQuery = 'sum';
-      app.paintSearch();
-    }],
-    ['Columns', 'Columns that came out empty', open('empty')],
-    ['Columns', 'All columns', open('all')],
-    ['Preview', 'Excel preview', async () => { await allSet(); app.go('preview'); }],
-    ['People', 'Unknown authors — lookup', open('authors')],
-    ['People', 'Authors left out by the filter', open('outside')],
-    ['Settings', 'Project groups', open('groups')],
-    ['Settings', 'Settings', open('settings')],
-    ['Settings', 'Reporting period', open('period')],
-    ['Settings', 'About this file', async () => { await withCsv({ settings: SETTINGS }, CSV_NOTES); app.go('notes'); }]
+    ['Columns', 'Columns to check', () => started()],
+    ['Columns', 'Resolve missing columns', async () => { await started(); app.go('pick', { pickKeys: problems().map((r) => r.key) }); }],
+    ['Columns', 'Pick a Jira field (search)', async () => { await started(); const ctx = app.jira.columnsContext(); openSearch(app, ctx.ds, ctx.problems[0], 'pick'); }],
+    ['Columns', 'All columns', async () => { await started(); app.go('all'); }],
+    ['Excel', 'Excel ready', () => built()],
+    ['Excel', 'Excel ready — one project group', async () => { await started(); state.projectGroup = 'Group A'; await app.jira.start(); app.jira.build(); await idle(app); app.render(); }],
+    ['Excel', 'Preview', async () => { await built(); app.go('preview'); }],
+    ['Excel', 'Columns that came out empty', async () => { await built(); app.go('empty'); }],
+    ['Settings', 'Project groups', async () => { await built({ settings: SETTINGS_DONE }); app.go('groups'); }],
+    ['Settings', 'Settings', async () => { await reset({ settings: SETTINGS }); app.go('settings'); }]
   ];
 
   let at = 0;
@@ -158,5 +110,5 @@ export function startDemo(app, storage) {
     select,
     h('button', { class: 'tdev__nav', 'aria-label': 'Next scenario', onclick: () => run(at + 1) }, '›'),
     h('span', { class: 'tdev__count', text: `${SCENARIOS.length} scenarios` })));
-  run(0);
+  run(1);
 }

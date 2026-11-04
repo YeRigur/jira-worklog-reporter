@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDataset } from '../src/core/dataset.js';
+import { buildDataset } from './support/fake-jira/dataset.js';
 import { csvFile } from './support/helpers.js';
 
 process.env.TZ = 'Europe/Kyiv';

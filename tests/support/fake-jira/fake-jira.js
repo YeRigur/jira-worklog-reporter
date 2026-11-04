@@ -1,7 +1,7 @@
 // A stand-in for the Worklogs bridge, for ?demo and the tests: the CSV
 // emulator answers search and worklogs, and this adds the user search and the
 // field list Jira mode asks for. Same shape as openBridge()'s result.
-import { createJiraEmulator } from '../core/emulator.js';
+import { createJiraEmulator } from './emulator.js';
 
 const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 

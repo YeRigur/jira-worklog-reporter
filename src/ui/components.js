@@ -1,5 +1,5 @@
 // The small parts every page of the card is built from.
-import { h, icon, copyText } from './dom.js';
+import { h, icon } from './dom.js';
 import { plural } from '../core/format.js';
 
 export function createComponents(app) {
@@ -7,8 +7,6 @@ export function createComponents(app) {
 
   const go = (page, extra = {}) => { Object.assign(state, extra, { page }); app.render(); };
   const link = (text, onclick) => h('button', { class: 'tlinkbtn', onclick }, text);
-  const factRow = (tone, iconName, text, action) => h('div', { class: `trow trow--${tone}` },
-    icon(iconName, 16), h('span', { class: 'x' }, text), action || null);
   const pageHead = (title, back = 'main') => h('div', { class: 'thead' },
     h('button', { class: 'tback', 'aria-label': 'Back', onclick: () => go(back) }, icon('back', 16)),
     h('div', { class: 'ttitle', text: title }));
@@ -23,23 +21,8 @@ export function createComponents(app) {
     ? h('div', { class: state.settingsNote.ok ? 'tok' : 'terr', text: state.settingsNote.text })
     : null);
   const settingsSummary = () => (app.hasSettings()
-    ? `${plural(Object.values(state.settings.projectGroups || {}).flat().length, 'mapped project')} · ${plural(state.settings.roster.length, 'roster email')} · ${plural(Object.keys(state.settings.teams).length, 'team assignment')} · ${plural(Object.keys(state.settings.people).length, 'person', 'people')} identified in Jira`
+    ? `${plural(state.settings.roster.length, 'person', 'people')} · ${plural(Object.values(state.settings.projectGroups || {}).flat().length, 'mapped project')} · ${plural(Object.keys(state.settings.teams).length, 'team assignment')}`
     : 'none on this computer yet');
 
-  const copyJql = () => {
-    const b = h('button', { class: 'tchip', onclick: async () => {
-      const ok = await copyText(app.teamJql());
-      b.textContent = ok ? 'Copied to clipboard' : 'Copy failed — use “Show JQL”';
-      setTimeout(() => { b.textContent = 'Copy JQL'; }, 2500);
-    } }, 'Copy JQL');
-    return b;
-  };
-
-  const warningText = (w) => ({
-    truncated: `“${w.file}” has exactly ${w.rows} issues — Jira may have cut the export short. Export smaller date ranges and drop all the files together.`,
-    encoding: `“${w.file}” looks re-saved by Excel. If names look wrong, export it from Jira again and drop it here without opening it.`,
-    'bad-worklog': `${w.count} worklog entries couldn’t be read and were skipped.`
-  })[w.code] || '';
-
-  return { go, link, factRow, pageHead, hint, actions, doneButton, step, settingsNote, settingsSummary, copyJql, warningText };
+  return { go, link, pageHead, hint, actions, doneButton, step, settingsNote, settingsSummary };
 }

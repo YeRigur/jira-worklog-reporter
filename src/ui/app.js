@@ -17,9 +17,9 @@ import { PAGES, mountShell, render, listenForDrops } from './render.js';
 // The browser's storage, when the browser lets the page have it.
 const browserStorage = () => { try { return globalThis.localStorage; } catch { return undefined; } };
 
-export function startConverter({ scriptsJson, jql, installXlsx, runExport, root = document.getElementById('app'), storage = browserStorage() }) {
+export function startConverter({ scriptsJson, installXlsx, runExport, root = document.getElementById('app'), storage = browserStorage() }) {
   const app = {
-    catalog: scriptsJson, publicJql: jql, installXlsx, runExport, storage,
+    catalog: scriptsJson, installXlsx, runExport, storage,
     template: buildColumnTemplate(scriptsJson),
     state: createState(),
     pages: PAGES,
@@ -27,14 +27,10 @@ export function startConverter({ scriptsJson, jql, installXlsx, runExport, root 
   };
   Object.assign(app, createConverter(app));
   Object.assign(app, createSettingsStore(app));
-  // Jira mode and the CSV path share the preview, the download and the
-  // signature the pages read; which one answers depends on the source.
-  const csv = { ensurePreview: app.ensurePreview, download: app.download, signature: app.signature };
   app.jira = createJiraRun(app);
-  const viaJira = () => app.state.source === 'jira';
-  app.ensurePreview = () => (viaJira() ? app.jira.ensurePreview() : csv.ensurePreview());
-  app.download = () => (viaJira() ? app.jira.download() : csv.download());
-  app.signature = () => (viaJira() ? app.jira.signature() : csv.signature());
+  app.ensurePreview = app.jira.ensurePreview;
+  app.download = app.jira.download;
+  app.signature = app.jira.signature;
   Object.assign(app, createComponents(app));
   app.inputs = createInputs(app);
   app.paintSearch = () => paintSearch(app);
@@ -43,9 +39,8 @@ export function startConverter({ scriptsJson, jql, installXlsx, runExport, root 
   app.render = () => render(app, shell);
   listenForDrops(app);
 
-  // Hook for automated checks of the page (tools/, tests/).
-  const { state, load, parse } = app;
-  window.__SL_TEST__ = { loadText: (name, text) => { state.files = [{ name, text, encoding: 'utf-8' }]; parse(); }, load, download: app.download, state, render: app.render, jira: app.jira, app };
+  // Hook for automated checks of the page (tests/).
+  window.__SL_TEST__ = { load: app.load, download: app.download, state: app.state, render: app.render, jira: app.jira, app };
 
   app.render();
   return app;

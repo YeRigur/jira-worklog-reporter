@@ -9,28 +9,22 @@ export const freshJira = () => ({ phase: 'idle', message: '', slow: false, missi
 export function createState() {
   const range = previousMonth();
   return {
-    // the CSV
-    files: [], dataset: null, error: null, datePattern: '',
-    // where the data comes from: straight from Jira through the bridge, or a CSV
-    source: 'jira',
-    // the roster emails ticked for Jira mode; null means everyone on the roster
-    picked: null,
-    jira: freshJira(), bridgeOpen: false,
-    // Jira mode: one project group only ('' = all projects)
-    projectGroup: '', progressPct: 0, columnsAll: false,
-    // the report
+    // the report: the period, the Jira site (typed; else the settings file's), the Summary sheet
     from: range.from, to: range.to, site: '', withSummary: null,
-    // months whose JQL was copied, to tick them off ("from|to")
-    copiedMonths: [], monthPick: '',
-    // columns attached by hand, and the ones gone without
+    // the roster emails ticked; null means the team filter's people (or everyone)
+    picked: null,
+    // one project group only ('' = all projects)
+    projectGroup: '',
+    // the run through the bridge, and the bookmark panel
+    jira: freshJira(), bridgeOpen: false, progress: '', progressPct: 0, busy: false, result: null,
+    // columns attached by hand for this site, and the ones gone without
     bindings: {}, skipped: [],
     // the workbook built for the preview — the same one the download hands over
     preview: null, previewing: null, previewSheet: 0,
     savedSig: '', savedAs: '',
     // which page the card shows, and what those pages are on
     page: 'main', pickKeys: [], searchFor: '', searchQuery: '', searchPick: '', searchBack: 'pick', emptyOk: false,
-    busy: false, progress: '', result: null,
     // the team's settings file
-    settings: emptySettings(), settingsName: '', settingsRev: 0, settingsNote: null, lookupText: ''
+    settings: emptySettings(), settingsName: '', settingsRev: 0, settingsNote: null
   };
 }

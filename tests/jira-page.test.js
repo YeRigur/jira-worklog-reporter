@@ -3,10 +3,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFakeDom } from './support/fake-dom.js';
-import { buildDataset } from '../src/core/dataset.js';
+import { buildDataset } from './support/fake-jira/dataset.js';
 import { fieldIdsFromCatalog } from '../src/core/export-config.js';
 import { catalog } from '../src/config/catalog.js';
-import { createFakeJira } from '../src/dev/fake-jira.js';
+import { createFakeJira } from './support/fake-jira/fake-jira.js';
+import { applyChoice } from '../src/ui/pages/search.js';
 import { csvFile } from './support/helpers.js';
 import { HEADERS, ROWS, PEOPLE } from './fixtures/synthetic.js';
 
@@ -33,8 +34,10 @@ hook.jira.setConnect(() => {
   return lastJira = createFakeJira({ dataset, authors: Object.fromEntries([A, B, C, D].map((p) => [p.key, person(p)])), people: [A, B].map(person) });
 });
 
-test('the page starts in Jira mode', () => {
-  assert.equal(hook.state.source, 'jira');
+test('the page starts on the export steps — five sections, no CSV anywhere', () => {
+  const text = root.textContent;
+  for (const s of ['Export', 'Columns', 'Preview', 'Project groups', 'Settings', 'Team settings', 'People', 'Start']) assert.ok(text.includes(s), s);
+  assert.doesNotMatch(text, /CSV|Authors/);
 });
 
 test('Start finds the people, runs the export through the bridge, and the Excel is ready', async () => {
@@ -47,7 +50,10 @@ test('Start finds the people, runs the export through the bridge, and the Excel 
   await settle();
   assert.equal(hook.state.jira.phase, 'mapping', 'Start stops at the columns');
   assert.equal(hook.state.preview, null, 'no worklogs read before Build Excel');
-  assert.ok(hook.jira.columns().length > 0);
+  const ctx = hook.jira.columnsContext();
+  assert.ok(ctx.rows.length > 0);
+  assert.ok(ctx.ds.issues.length > 0, 'a sample of issues was read for the columns');
+  assert.ok(ctx.cov('summary').filled > 0, 'and says how full each field is');
   hook.jira.build();
   await settle();
   assert.equal(opened, 1);
@@ -82,13 +88,14 @@ test('the start screen shows the people, the site, Start and the bookmark; previ
   await hook.jira.start();
   hook.render();
   assert.ok(root.textContent.includes('Build Excel'), 'the columns step is shown');
+  assert.match(root.textContent, /found in Jira/);
   hook.jira.build();
   await settle();
   hook.state.page = 'main';
   hook.render();
   const text = root.textContent;
-  for (const s of ['People', A.email, 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel', 'Or upload a CSV']) assert.ok(text.includes(s), s);
-  for (const page of ['preview', 'groups']) {
+  for (const s of ['People', A.email, 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel']) assert.ok(text.includes(s), s);
+  for (const page of ['preview', 'groups', 'all', 'pick', 'empty', 'settings']) {
     hook.state.page = page;
     assert.doesNotThrow(() => hook.render(), page);
   }
@@ -166,10 +173,17 @@ test('one project group: Jira is asked for its projects only, and the file says 
   hook.state.projectGroup = '';
 });
 
-test('a column picked by hand on the columns step is kept for the site', async () => {
+test('a Jira field picked on the columns page is kept for the site, and used', async () => {
   await hook.jira.start();
-  const row = hook.jira.columns().find((r) => r.status === 'missing' || r.status === 'auto');
-  hook.jira.setBinding(row.key, '');
-  assert.equal(hook.state.settings.sites['acme.atlassian.net'].bindings[row.key], '');
-  assert.equal(hook.jira.columns().find((r) => r.key === row.key).status, 'empty');
+  const ctx = hook.jira.columnsContext();
+  const row = ctx.rows.find((r) => r.status === 'missing') || ctx.rows.find((r) => r.status === 'auto');
+  const free = ctx.ds.model.fields.find((f) => !ctx.rows.some((r) => r.fieldId === f.id));
+  applyChoice(hook.app, row, free.id);
+  assert.equal(hook.state.settings.sites['acme.atlassian.net'].bindings[row.key], free.id);
+  assert.equal(hook.jira.columnsContext().rows.find((r) => r.key === row.key).status, 'bound');
+  hook.state.page = 'search';
+  hook.state.searchFor = row.key;
+  assert.doesNotThrow(() => hook.render(), 'the field search opens on Jira’s fields');
+  hook.state.page = 'main';
+  hook.render();
 });
