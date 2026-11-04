@@ -5,6 +5,7 @@
 // people, project group or site asks for Start again. What goes on is shown in
 // the card over the Jira tab too.
 import { openBridge } from './bridge-client.js';
+import { jiraBridge } from '../config/jira-bridge.js';
 import { createFetchCache } from '../core/fetch-cache.js';
 import { scopedFetch } from '../core/jql-scope.js';
 import { resolveAccounts } from '../core/accounts.js';
@@ -14,7 +15,6 @@ import { withSettings } from '../core/settings.js';
 import { cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
 
-const SLOW_MS = 120000;
 const DONE_TEXT = 'All done — you can close this tab and check the report on the export page.';
 const browserConnect = (site) => openBridge({ site, open: (url, name) => window.open(url, name), events: window });
 // "worklogs_2026-10.xlsx" + ["NBS Latam", "Purina PGL"] → "worklogs_2026-10 - NBS Latam - Purina PGL.xlsx"
@@ -61,7 +61,7 @@ export function createJiraRun(app) {
     bridgeSite = site();
     try { bridge = connect(site()); } catch (e) { set({ phase: 'error', message: e.message }); return false; }
     set({ phase: 'waiting', message: '', slow: false });
-    const slow = setTimeout(() => { if (state.jira.phase === 'waiting') set({ slow: true }); }, SLOW_MS);
+    const slow = setTimeout(() => { if (state.jira.phase === 'waiting') set({ slow: true }); }, jiraBridge.slowAfterMs);
     try { await bridge.ready; return true; } catch (e) {
       if (e.code === 'old-bridge') state.bridgeOpen = true;
       set({ phase: 'error', message: e.message });

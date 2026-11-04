@@ -35,9 +35,12 @@ the page is not allowed to connect to any server.
    projects without a group.
 9. **Click *Download Excel*.** Use *Preview* first if you want to see the rows.
 
-The bookmark only reads from Jira (searches, worklogs, users, the field list)
-and only answers this page. The page itself still connects to nothing. After an
-update of the page, the bookmark may need dragging again — the page says so. A
+The bookmark is a plain relay: it answers this page only, makes only GET
+requests to Jira's REST API (`/rest/api/3/…`), same-site with your sign-in,
+and never writes anything. The page itself still connects to nothing. Which
+calls the page sends, the timeouts and the bookmark's words are all in
+`src/config/jira-bridge.js`; the bookmark is built from it. It doesn't change
+when the page changes — only a new `protocol` there asks you to drag it again. A
 bookmark dragged from one address (say `localhost`) only answers that address,
 so the GitHub Pages page needs its own.
 

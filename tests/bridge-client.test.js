@@ -71,8 +71,13 @@ test('an old bookmark is told to update', async () => {
 
 test('fetch sends the path to the Jira tab and returns its answer as a Response', async () => {
   const { bridge, win, answer } = setup();
-  const pending = bridge.fetch('/rest/api/3/search/jql', { method: 'POST', body: '{"jql":"x"}' });
-  assert.deepEqual(win.sent[0], { data: { type: 'wl-bridge:fetch', id: 1, method: 'POST', path: '/rest/api/3/search/jql', body: '{"jql":"x"}' }, target: ORIGIN });
+  const pending = bridge.fetch('/rest/api/3/search/jql', { method: 'POST', body: JSON.stringify({ jql: 'worklogDate >= "2026-08-01"', maxResults: 50, fields: ['summary', 'worklog'], nextPageToken: 'p:50' }) });
+  const sent = win.sent[0].data;
+  assert.equal(sent.method, 'GET', 'the export’s POST search goes as GET — the bookmark only reads');
+  const q = new URL(sent.path, ORIGIN).searchParams;
+  assert.equal(new URL(sent.path, ORIGIN).pathname, '/rest/api/3/search/jql');
+  assert.deepEqual([q.get('jql'), q.get('maxResults'), q.get('fields'), q.get('nextPageToken')], ['worklogDate >= "2026-08-01"', '50', 'summary,worklog', 'p:50']);
+  assert.equal(win.sent[0].target, ORIGIN);
   answer(200, '{"issues":[]}');
   const res = await pending;
   assert.equal(res.status, 200);
@@ -130,4 +135,11 @@ test('status goes to the Jira tab once it is connected', async () => {
   await bridge.ready;
   bridge.status({ text: 'Worklogs: 1/2', pct: 50 });
   assert.deepEqual(win.sent.at(-1), { data: { type: 'wl-bridge:status', text: 'Worklogs: 1/2', pct: 50 }, target: ORIGIN });
+});
+
+test('a call the config doesn’t list never reaches the Jira tab', async () => {
+  const { bridge, win } = setup();
+  await assert.rejects(bridge.fetch('/rest/api/3/project'), /isn’t set up/);
+  await assert.rejects(bridge.fetch('/rest/api/3/myself', { method: 'DELETE' }), /isn’t set up/);
+  assert.equal(win.sent.length, 0);
 });

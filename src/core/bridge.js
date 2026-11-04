@@ -1,37 +1,35 @@
-// The Worklogs bridge: a bookmarklet the person clicks in their Jira tab. It
-// runs the read-only REST calls the export page sends it, same-origin with the
-// person's own session, and posts the answers back to that page only. The
-// allow-list below is the single source: the bookmarklet carries its text.
+// The Worklogs bridge: a bookmarklet the person clicks in their Jira tab. It is
+// a plain relay and meant never to change: the export page sends it a request,
+// it checks it (the page's own origin, GET only, Jira's REST API only), runs it
+// same-origin with the person's session, and posts the answer back to that
+// page only. While the export runs it shows the page's progress in a card over
+// the Jira tab. Everything else — which calls, how often, what to say — lives
+// on the page and in src/config/jira-bridge.js, which the bookmark is built from.
+import { jiraBridge } from '../config/jira-bridge.js';
 
-// 2: the page sends wl-bridge:status, shown in a card over the Jira tab.
-export const BRIDGE_VERSION = 2;
+export const BRIDGE_VERSION = jiraBridge.protocol;
 
-const ROUTES = [
-  ['POST', /^\/rest\/api\/3\/search\/jql$/],
-  ['GET', /^\/rest\/api\/3\/issue\/[A-Za-z0-9_-]+\/worklog(\?[^#]*)?$/],
-  ['GET', /^\/rest\/api\/3\/user\/search(\?[^#]*)?$/],
-  ['GET', /^\/rest\/api\/3\/user(\?[^#]*)?$/],
-  ['GET', /^\/rest\/api\/3\/myself$/],
-  ['GET', /^\/rest\/api\/3\/field$/]
-];
+// A path the bookmark may be asked for at all: one leading slash, no tricks.
+const looksSafe = (p) => p.startsWith('/') && !p.includes('//') && !p.includes('..') && !p.includes('#')
+  && !p.includes('\\') && !/%2e/i.test(p);
 
-export function allowRequest(method, path) {
-  const m = String(method || 'GET').toUpperCase();
+const escape = (s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+const patternOf = (path) => new RegExp(`^${path.split('*').map(escape).join('[A-Za-z0-9_-]+')}(\\?[^#]*)?$`);
+
+// The page's own check, from the config: GET, and one of the allowed calls.
+export function allowRequest(method, path, config = jiraBridge) {
   const p = String(path || '');
-  if (!p.startsWith('/') || p.includes('//') || p.includes('..') || p.includes('#') || p.includes('\\') || /%2e/i.test(p)) return false;
-  return ROUTES.some(([rm, re]) => rm === m && re.test(p));
+  if (String(method || 'GET').toUpperCase() !== 'GET' || !looksSafe(p) || !p.startsWith(config.apiPrefix)) return false;
+  return config.allowedPaths.map(patternOf).some((re) => re.test(p));
 }
 
 // Runs in the Jira tab. Uses only window, document, location, fetch and alert.
-// While the export runs, the Jira page is blurred behind a card that shows
-// what the export page reports; at the end it says the tab can be closed.
-const relay = (PAGE_ORIGIN, V) => {
+// `C` is { origin, protocol, prefix, text } — fixed when the bookmark is made.
+const relay = (C, looksSafe) => {
+  const T = C.text;
   const opener = window.opener;
-  if (!opener) {
-    alert('Open Jira with Start on the export page, then click this bookmark there.');
-    return;
-  }
-  const announce = () => opener.postMessage({ type: 'wl-bridge:ready', v: V, site: location.host }, PAGE_ORIGIN);
+  if (!opener) { alert(T.noOpener); return; }
+  const announce = () => opener.postMessage({ type: 'wl-bridge:ready', v: C.protocol, site: location.host }, C.origin);
   if (window.__wlBridge) { window.__wlBridge.show(); announce(); return; }
 
   const el = (tag, css, text) => {
@@ -42,8 +40,8 @@ const relay = (PAGE_ORIGIN, V) => {
   };
   const shade = el('div', 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif');
   const card = el('div', 'width:min(420px,calc(100vw - 32px));padding:22px 24px;border-radius:12px;background:#fff;color:#1f2937;box-shadow:0 20px 50px rgba(0,0,0,.25);text-align:center');
-  const title = el('div', 'font-weight:700;font-size:16px;margin-bottom:6px', 'Worklogs export');
-  const text = el('div', 'color:#4b5563;min-height:20px', 'Connected. Follow the export page.');
+  const title = el('div', 'font-weight:700;font-size:16px;margin-bottom:6px', T.title);
+  const text = el('div', 'color:#4b5563;min-height:20px', T.connected);
   const track = el('div', 'height:6px;margin:14px 0 8px;border-radius:3px;background:#e5e7eb;overflow:hidden');
   const bar = el('div', 'height:100%;width:0;background:#107c10;transition:width .3s');
   const meta = el('div', 'font-size:12px;color:#6b7280');
@@ -55,43 +53,44 @@ const relay = (PAGE_ORIGIN, V) => {
   };
   const show = () => { if (!shade.parentNode) document.body.appendChild(shade); };
   const hide = () => { if (shade.parentNode) shade.parentNode.removeChild(shade); };
-  actions.appendChild(button('Close tab', true, () => window.close()));
-  actions.appendChild(button('Back to Jira', false, hide));
+  actions.appendChild(button(T.closeTab, true, () => window.close()));
+  actions.appendChild(button(T.backToJira, false, hide));
   track.appendChild(bar);
   [title, text, track, meta, actions].forEach((n) => card.appendChild(n));
   shade.appendChild(card);
   let count = 0;
-  const paintMeta = () => { meta.textContent = count + ' requests · keep this tab open'; };
+  let over = false;
+  const paintMeta = () => { meta.textContent = count + ' ' + T.requests + (over ? '' : ' · ' + T.keepOpen); };
   paintMeta();
   show();
   window.__wlBridge = { show };
 
+  // What the page says: { title?, text?, pct?, done?, error? }.
   const status = (d) => {
     show();
+    over = Boolean(d.done || d.error);
+    title.textContent = d.done ? T.done : (d.error ? T.failed : String(d.title || T.title));
     if (d.text) text.textContent = String(d.text);
     if (typeof d.pct === 'number') bar.style.width = Math.max(0, Math.min(100, d.pct)) + '%';
-    const over = Boolean(d.done || d.error);
-    title.textContent = d.done ? '✓ All done' : (d.error ? 'Something went wrong' : 'Worklogs export');
     if (d.done) bar.style.width = '100%';
     bar.style.background = d.error ? '#c50f1f' : '#107c10';
-    meta.textContent = over ? count + ' requests' : count + ' requests · keep this tab open';
     actions.style.display = over ? 'flex' : 'none';
+    paintMeta();
   };
 
   window.addEventListener('message', async (event) => {
     const d = event.data;
-    if (event.origin !== PAGE_ORIGIN || event.source !== opener || !d) return;
+    if (event.origin !== C.origin || event.source !== opener || !d) return;
     if (d.type === 'wl-bridge:status') { status(d); return; }
     if (d.type !== 'wl-bridge:fetch') return;
-    const reply = (status, body, retryAfter) => opener.postMessage({ type: 'wl-bridge:response', id: d.id, status, body, retryAfter: retryAfter || '' }, PAGE_ORIGIN);
-    const method = String(d.method || 'GET').toUpperCase();
-    if (!allowRequest(method, d.path)) { reply(403, 'Refused by the bridge'); return; }
+    const reply = (code, body, retryAfter) => opener.postMessage({ type: 'wl-bridge:response', id: d.id, status: code, body, retryAfter: retryAfter || '' }, C.origin);
+    const path = String(d.path || '');
+    // Read-only, and Jira's REST API only — whatever the page asks.
+    if (String(d.method || 'GET').toUpperCase() !== 'GET' || !looksSafe(path) || path.indexOf(C.prefix) !== 0) { reply(403, 'Refused by the bridge'); return; }
     count++;
-    if (actions.style.display !== 'flex') paintMeta();
+    paintMeta();
     try {
-      const headers = { Accept: 'application/json' };
-      if (d.body != null) headers['Content-Type'] = 'application/json';
-      const res = await fetch(d.path, { method, body: d.body == null ? undefined : d.body, credentials: 'include', headers });
+      const res = await fetch(path, { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' } });
       reply(res.status, await res.text(), res.headers.get('Retry-After'));
     } catch (e) {
       reply(0, String((e && e.message) || e));
@@ -100,9 +99,9 @@ const relay = (PAGE_ORIGIN, V) => {
   announce();
 };
 
-export function bookmarkletSource(pageOrigin) {
-  const routes = `const ROUTES = [${ROUTES.map(([m, re]) => `[${JSON.stringify(m)}, ${re}]`).join(', ')}];`;
-  return `(() => {\n${routes}\nconst allowRequest = ${allowRequest.toString()};\n(${relay.toString()})(${JSON.stringify(pageOrigin)}, ${BRIDGE_VERSION});\n})();`;
+export function bookmarkletSource(pageOrigin, config = jiraBridge) {
+  const C = { origin: pageOrigin, protocol: config.protocol, prefix: config.apiPrefix, text: config.text };
+  return `(() => {\n(${relay.toString()})(${JSON.stringify(C)}, ${looksSafe.toString()});\n})();`;
 }
 
-export const bookmarkletUrl = (pageOrigin) => `javascript:${encodeURIComponent(bookmarkletSource(pageOrigin))}`;
+export const bookmarkletUrl = (pageOrigin, config = jiraBridge) => `javascript:${encodeURIComponent(bookmarkletSource(pageOrigin, config))}`;

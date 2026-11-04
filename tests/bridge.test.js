@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { allowRequest, bookmarkletSource, bookmarkletUrl, BRIDGE_VERSION } from '../src/core/bridge.js';
+import { jiraBridge } from '../src/config/jira-bridge.js';
 
 const PAGE = 'https://me.github.io';
 
-test('the six read calls are allowed', () => {
-  assert.ok(allowRequest('POST', '/rest/api/3/search/jql'));
+test('the page may ask for the calls in the config, by GET', () => {
+  assert.ok(allowRequest('GET', '/rest/api/3/search/jql?jql=x&maxResults=50'));
   assert.ok(allowRequest('GET', '/rest/api/3/issue/AC-1/worklog?startAt=0&maxResults=5000'));
   assert.ok(allowRequest('get', '/rest/api/3/issue/10001/worklog'));
   assert.ok(allowRequest('GET', '/rest/api/3/user/search?query=a.b%40x.com&maxResults=10'));
@@ -14,14 +15,21 @@ test('the six read calls are allowed', () => {
   assert.ok(allowRequest('GET', '/rest/api/3/field'));
 });
 
-test('everything else is refused', () => {
+test('everything else is refused on the page', () => {
   const refused = [
-    ['GET', '/rest/api/3/search/jql'], ['DELETE', '/rest/api/3/issue/AC-1/worklog'], ['PUT', '/rest/api/3/myself'],
-    ['POST', '/rest/api/3/issue/AC-1/worklog'], ['GET', '//evil.com/rest/api/3/myself'], ['GET', 'https://evil.com/rest/api/3/myself'],
+    ['POST', '/rest/api/3/search/jql'], ['DELETE', '/rest/api/3/issue/AC-1/worklog'], ['PUT', '/rest/api/3/myself'],
+    ['GET', '//evil.com/rest/api/3/myself'], ['GET', 'https://evil.com/rest/api/3/myself'],
     ['GET', '/rest/api/3/../../secure/x'], ['GET', '/rest/api/3/issue/%2e%2e/worklog'], ['GET', '/rest/api/3/user/bulk/migration?key=a'],
-    ['GET', '/rest/api/3/myself#x'], ['GET', 'rest/api/3/myself'], ['GET', '/rest/api/2/myself'], ['GET', '/rest/api/3/myself\\x'], ['GET', '']
+    ['GET', '/rest/api/3/myself#x'], ['GET', 'rest/api/3/myself'], ['GET', '/rest/api/2/myself'], ['GET', '/rest/api/3/myself\\x'], ['GET', ''],
+    ['GET', '/rest/api/3/project']
   ];
   for (const [method, path] of refused) assert.equal(allowRequest(method, path), false, `${method} ${path}`);
+});
+
+test('the allowed calls come from the config, not the code', () => {
+  const config = { ...jiraBridge, allowedPaths: ['/rest/api/3/project'] };
+  assert.ok(allowRequest('GET', '/rest/api/3/project', config));
+  assert.equal(allowRequest('GET', '/rest/api/3/myself', config), false);
 });
 
 // A Jira tab the bookmarklet can run in.
@@ -63,17 +71,28 @@ test('it tells the export page it is ready, and only that page', () => {
   assert.equal(tab.body.children.length, 1, 'the card over the page is shown');
 });
 
-test('an allowed request runs same-origin with the session, and the answer goes back', async () => {
+test('a GET to Jira’s REST API runs same-origin with the session, and the answer goes back', async () => {
   const calls = [];
   const tab = jiraTab({ fetch: async (path, init) => { calls.push([path, init]); return new Response('{"ok":1}', { status: 200 }); } });
   tab.run();
-  await tab.send({ type: 'wl-bridge:fetch', id: 7, method: 'POST', path: '/rest/api/3/search/jql', body: '{"jql":"x"}' });
+  await tab.send({ type: 'wl-bridge:fetch', id: 7, method: 'GET', path: '/rest/api/3/search/jql?jql=x' });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0][0], '/rest/api/3/search/jql');
+  assert.equal(calls[0][0], '/rest/api/3/search/jql?jql=x');
   assert.equal(calls[0][1].credentials, 'include');
-  assert.equal(calls[0][1].method, 'POST');
-  assert.equal(calls[0][1].headers['Content-Type'], 'application/json');
+  assert.equal(calls[0][1].method, 'GET');
   assert.deepEqual(tab.opener.sent.at(-1), { data: { type: 'wl-bridge:response', id: 7, status: 200, body: '{"ok":1}', retryAfter: '' }, target: PAGE });
+});
+
+test('the bookmark itself allows any GET under the REST prefix — the page narrows it — and nothing else', async () => {
+  const calls = [];
+  const tab = jiraTab({ fetch: async (path) => { calls.push(path); return new Response('{}'); } });
+  tab.run();
+  await tab.send({ type: 'wl-bridge:fetch', id: 1, method: 'GET', path: '/rest/api/3/some/new/call' });
+  for (const [id, method, path] of [[2, 'POST', '/rest/api/3/search/jql'], [3, 'GET', '/secure/admin'], [4, 'GET', '/rest/api/3/../x'], [5, 'DELETE', '/rest/api/3/issue/AC-1']]) {
+    await tab.send({ type: 'wl-bridge:fetch', id, method, path, body: '{}' });
+    assert.equal(tab.opener.sent.at(-1).data.status, 403, `${method} ${path}`);
+  }
+  assert.deepEqual(calls, ['/rest/api/3/some/new/call']);
 });
 
 test('messages from another origin or another window are ignored', async () => {
@@ -85,15 +104,6 @@ test('messages from another origin or another window are ignored', async () => {
   await tab.send(msg, { source: {} });
   assert.equal(called, 0);
   assert.equal(tab.opener.sent.length, 1, 'only the ready message');
-});
-
-test('a request off the allow-list is refused without touching Jira', async () => {
-  let called = 0;
-  const tab = jiraTab({ fetch: async () => { called++; return new Response('{}'); } });
-  tab.run();
-  await tab.send({ type: 'wl-bridge:fetch', id: 2, method: 'DELETE', path: '/rest/api/3/issue/AC-1/worklog' });
-  assert.equal(called, 0);
-  assert.equal(tab.opener.sent.at(-1).data.status, 403);
 });
 
 test('a network error comes back as status 0 with the message', async () => {
@@ -116,6 +126,7 @@ test('the bookmark is the source as a javascript: URL', () => {
   assert.ok(url.startsWith('javascript:'));
   assert.equal(decodeURIComponent(url.slice('javascript:'.length)), bookmarkletSource(PAGE));
   assert.ok(bookmarkletSource(PAGE).includes(JSON.stringify(PAGE)));
+  assert.ok(bookmarkletSource(PAGE).includes(JSON.stringify(jiraBridge.text.closeTab)), 'its words come from the config');
 });
 
 test('the export page’s progress shows in the card; at the end it says the tab can be closed', async () => {
