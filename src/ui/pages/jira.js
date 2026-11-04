@@ -21,13 +21,14 @@ const step = (n, title, aside, ...body) => h('section', { class: 'tjv__step' },
 export function jiraStart(app, { note } = {}) {
   const { state } = app;
   const working = state.jira.phase === 'waiting' || state.jira.phase === 'running' || Boolean(state.previewing);
-  // Who on the left (the roster can be long), what and the run on the right.
-  return h('div', { class: 'tjv2' },
-    h('div', { class: 'tjv tjv--who' },
-      settingsStep(app), note || null,
-      peopleStep(app)),
-    h('div', { class: 'tjv tjv--run' },
-      whereStep(app),
+  // Steps 1-2-3 side by side, the run under them.
+  const card = (...parts) => h('div', { class: 'tjv3__card' }, ...parts);
+  return h('div', { class: 'tjv3' },
+    h('div', { class: 'tjv3__steps' },
+      card(settingsStep(app), note || null),
+      card(peopleStep(app)),
+      card(whereStep(app))),
+    h('div', { class: 'tjv tjv3__run' },
       startBlock(app, working),
       statusOf(app),
       columnsBlock(app),
@@ -76,16 +77,22 @@ function peopleStep(app) {
     const on = emails.filter((e) => picked.includes(e));
     const all = on.length === emails.length;
     const toggle = () => app.pickPeople(all ? picked.filter((e) => !emails.includes(e)) : [...new Set([...picked, ...emails])]);
-    return h('div', { class: 'tgroup' },
+    // Groups start folded, so every group shows at a glance.
+    const open = state.openGroups.includes(label);
+    const fold = () => { state.openGroups = open ? state.openGroups.filter((g) => g !== label) : [...state.openGroups, label]; app.render(); };
+    const absent = emails.filter((e) => j.missing.includes(e)).length;
+    return h('div', { class: `tgroup${open ? ' is-open' : ''}` },
       h('div', { class: 'tgroup__head' },
-        h('b', { class: 'x', text: label }),
+        h('button', { class: 'tgroup__fold x', 'aria-expanded': open ? 'true' : 'false', onclick: fold },
+          icon(open ? 'down' : 'right', 14), h('b', { text: label })),
+        absent ? h('small', { class: 'tcheck__bad', text: `${absent} ${hints.notInJira}` }) : null,
         h('span', { class: 'tgroup__count', text: `${on.length} of ${emails.length}` }),
         link(all ? 'None' : 'All', toggle),
         h('button', {
           class: 'tbtn tbtn--sm', disabled: busy || !app.jira.site(), title: hints.separateReport(label),
           onclick: () => app.jira.groupReport(emails, label)
         }, icon('download', 13), j.report === label ? 'Building…' : 'Separate report')),
-      ...emails.map((email) => h('label', { class: 'tcheck' },
+      ...(open ? emails : []).map((email) => h('label', { class: 'tcheck' },
         h('input', {
           type: 'checkbox', checked: picked.includes(email),
           onchange: (e) => app.pickPeople(e.target.checked ? [...picked, email] : picked.filter((x) => x !== email))

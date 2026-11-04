@@ -94,7 +94,12 @@ test('the start screen shows the people, the site, Start and the bookmark; previ
   hook.state.page = 'main';
   hook.render();
   const text = root.textContent;
-  for (const s of ['People', A.email, 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel']) assert.ok(text.includes(s), s);
+  for (const s of ['People', 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel']) assert.ok(text.includes(s), s);
+  assert.ok(!text.includes(A.email), 'groups start folded');
+  hook.state.openGroups = [...new Set(hook.app.state.openGroups.concat(['No group', 'Team UA']))];
+  hook.render();
+  assert.ok(root.textContent.includes(A.email), 'an unfolded group lists its people');
+  hook.state.openGroups = [];
   for (const page of ['preview', 'groups', 'all', 'pick', 'empty', 'settings']) {
     hook.state.page = page;
     assert.doesNotThrow(() => hook.render(), page);

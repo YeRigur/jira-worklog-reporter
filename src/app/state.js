@@ -13,6 +13,8 @@ export function createState() {
     from: range.from, to: range.to, site: '', withSummary: null,
     // the roster emails ticked; null means the team filter's people (or everyone)
     picked: null,
+    // the people groups unfolded on the export page (all folded at first)
+    openGroups: [],
     // one project group only ('' = all projects)
     projectGroup: '',
     // the run through the bridge, and the bookmark panel

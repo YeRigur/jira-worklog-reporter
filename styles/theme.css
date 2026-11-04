@@ -205,13 +205,22 @@
 .tgroup__head { flex-wrap: wrap; }
 .tgroup__head .x { flex: 1 1 auto; min-width: 7em; overflow-wrap: normal; }
 
-/* Export page in two columns: who on the left, what and the run on the right */
-.tjv2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 32px; max-width: 1120px; margin: 0 auto; width: 100%; align-items: start; }
-.tjv2 > .tjv { max-width: none; margin: 0; }
-.tjv--run { position: sticky; top: 16px; }
-.tjv2 .tgroups { max-height: min(560px, calc(100vh - 300px)); }
-@media (max-width: 900px) {
-  .tjv2 { grid-template-columns: minmax(0, 1fr); max-width: 600px; }
-  .tjv--run { position: static; padding-top: 12px; border-top: 1px solid var(--line); }
-  .tjv2 .tgroups { max-height: 300px; }
+/* Export page: steps 1-2-3 side by side, the run under them */
+.tjv3 { display: flex; flex-direction: column; gap: 16px; max-width: 1180px; margin: 0 auto; width: 100%; min-width: 0; }
+.tjv3__steps { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.tjv3__card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.tjv3__card .tjv__where, .tjv3__card .tjv__where.is-single { grid-template-columns: minmax(0, 1fr); }
+.tjv3__run { max-width: 720px; margin: 0 auto; }
+.tgroup__fold { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.tgroup__fold .icon { color: var(--text-3); flex: none; }
+.tgroup:not(.is-open) + .tgroup { border-top: 1px solid var(--line); }
+.tgroups { max-height: 420px; }
+@media (max-width: 1000px) {
+  .tjv3__steps { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .tjv3__card:last-child { grid-column: 1 / -1; }
+  .tjv3__card:last-child .tjv__where:not(.is-single) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .tjv3__steps { grid-template-columns: minmax(0, 1fr); }
+  .tjv3__card:last-child .tjv__where:not(.is-single) { grid-template-columns: minmax(0, 1fr); }
 }
