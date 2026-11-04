@@ -23,9 +23,7 @@ export function jiraStart(app, { note } = {}) {
   return h('div', { class: 'tjv' },
     settingsStep(app), note || null,
     peopleStep(app),
-    siteStep(app),
-    periodStep(app),
-    projectsStep(app),
+    whereStep(app),
     startBlock(app, working),
     statusOf(app),
     columnsBlock(app),
@@ -101,16 +99,12 @@ function peopleStep(app) {
     h('div', { class: 'tjv__row' }, input, h('button', { class: 'tbtn tbtn--sm', onclick: addEmail }, icon('plus', 14), 'Add')));
 }
 
-function siteStep(app) {
-  const { state } = app;
-  const input = app.inputs.siteInput;
-  if (!input.value && state.settings.site) input.value = state.settings.site;
-  return step(3, 'Jira site', null, input);
-}
-
-function periodStep(app) {
+// Where and when, in one step: the Jira site, the period, and — when the
+// settings have project groups — one group only.
+function whereStep(app) {
   const { state, link } = app;
-  const { fromInput, toInput } = app.inputs;
+  const { fromInput, toInput, siteInput } = app.inputs;
+  if (!siteInput.value && state.settings.site) siteInput.value = state.settings.site;
   const last = previousMonth();
   const isLast = state.from === last.from && state.to === last.to;
   const setLast = () => {
@@ -119,28 +113,22 @@ function periodStep(app) {
     state.result = null;
     app.render();
   };
-  return step(4, 'Period',
-    h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: periodLabel(state.from, state.to) }),
-      isLast ? null : link('Last month', setLast)),
-    h('div', { class: 'tjv__dates' }, fromInput, h('span', { class: 'tjv__dash', text: '–' }), toInput));
-}
-
-// One project group only, when the settings have groups: Jira is asked for
-// those projects alone.
-function projectsStep(app) {
-  const { state } = app;
   const groups = state.settings.projectGroups || {};
   const names = Object.keys(groups);
-  if (!names.length) return null;
-  const select = h('select', {
-    'aria-label': 'Project group',
-    onchange: (e) => { state.projectGroup = e.target.value; state.result = null; app.render(); }
-  },
-  h('option', { value: '', text: 'All projects', selected: !state.projectGroup }),
-  ...names.map((g) => h('option', { value: g, text: `${g} · ${plural(groups[g].length, 'project')}`, selected: state.projectGroup === g })));
   const keys = state.projectGroup ? groups[state.projectGroup] || [] : [];
-  return step(5, 'Projects', null, select,
-    h('div', { class: 'thelp', text: keys.length ? `Only ${keys.join(', ')} — Jira is asked for these alone, and the file is named after the group.` : 'Every project the people logged time in.' }));
+  const projects = names.length ? h('label', { class: 'tjv__field' }, h('span', { text: 'Projects' }),
+    h('select', { 'aria-label': 'Project group', onchange: (e) => { state.projectGroup = e.target.value; state.result = null; app.render(); } },
+      h('option', { value: '', text: 'All projects', selected: !state.projectGroup }),
+      ...names.map((g) => h('option', { value: g, text: `${g} · ${plural(groups[g].length, 'project')}`, selected: state.projectGroup === g })))) : null;
+  return step(3, 'Jira & period',
+    h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: periodLabel(state.from, state.to) }),
+      isLast ? null : link('Last month', setLast)),
+    h('div', { class: `tjv__where${projects ? '' : ' is-single'}` },
+      h('label', { class: 'tjv__field' }, h('span', { text: 'Jira site' }), siteInput),
+      projects,
+      h('div', { class: 'tjv__field tjv__field--wide' }, h('span', { text: 'Period' }),
+        h('div', { class: 'tjv__dates' }, fromInput, h('span', { class: 'tjv__dash', text: '–' }), toInput))),
+    keys.length ? h('div', { class: 'thelp', text: `Only ${keys.join(', ')} — Jira is asked for these alone, and the file is named after the group.` }) : null);
 }
 
 // After Start: how the report's columns stand against this Jira, and the way
