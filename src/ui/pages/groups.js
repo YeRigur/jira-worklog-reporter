@@ -3,6 +3,7 @@
 import { h, icon } from '../dom.js';
 import { plural } from '../../core/format.js';
 import { groupOf, groupNames, projectsInFile } from '../../core/project-groups.js';
+import { hints } from '../../config/texts.js';
 
 export function groupsPage(app, { ds }) {
   const { state, link, pageHead, hint, actions, doneButton, settingsNote } = app;
@@ -26,10 +27,10 @@ export function groupsPage(app, { ds }) {
     .flatMap(([g, keys]) => keys.map((k) => ({ k, g })))
     .filter(({ k }) => !projects.some((p) => p.key === k));
   return [pageHead('Project groups'),
-    hint('“Project group” isn’t a Jira field — each project key gets the name the dashboard groups by. Type a name or pick one already used; several projects can share a group. Kept on this computer; save the settings file to pass it on.'),
+    hint(hints.groups),
     h('datalist', { id: listId }, ...groupNames(groups).map((n) => h('option', { value: n }))),
     h('div', { class: 'tgrid tgrid--wide' }, ...projects.map(row)),
-    elsewhere.length ? h('div', { class: 'tnote' }, `Also in the settings, not in this export: ${elsewhere.map(({ k, g }) => `${k} → ${g}`).join(', ')}`) : null,
+    elsewhere.length ? h('div', { class: 'tnote' }, hints.groupsElsewhere(elsewhere.map(({ k, g }) => `${k} → ${g}`).join(', '))) : null,
     settingsNote(),
     actions(
       doneButton(),

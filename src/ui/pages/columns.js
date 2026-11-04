@@ -6,6 +6,7 @@ import { periodLabel } from '../../core/period.js';
 import { plural } from '../../core/format.js';
 import { isProblem, defaultOf, usedFieldIds, pickable } from '../../core/column-choice.js';
 import { applyChoice, openSearch } from './search.js';
+import { hints } from '../../config/texts.js';
 
 export function pickPage(app, { ds, rows, cov }) {
   const { state, go, link, pageHead, hint, actions, doneButton } = app;
@@ -24,7 +25,7 @@ export function pickPage(app, { ds, rows, cov }) {
           ? h('div', { class: 'tsugg' }, 'Suggested:',
             h('button', { class: 'tchip', onclick: () => { applyChoice(app, r, best.id); app.render(); } }, best.name),
             h('span', { text: `${c.filled} of ${c.total} issues` }))
-          : h('div', { class: 'tsugg', text: 'No similar field in this Jira' }));
+          : h('div', { class: 'tsugg', text: hints.noSimilar }));
     }
     const bound = r.status === 'bound';
     const c = bound ? cov(r.fieldId) : null;
@@ -36,9 +37,9 @@ export function pickPage(app, { ds, rows, cov }) {
   };
   const decided = items.length - undecided.length;
   return [pageHead('Resolve missing columns'),
-    undecided.length ? hint('This Jira has no field for these report columns. Map each one to a Jira field, or leave it out.') : null,
+    undecided.length ? hint(hints.pick) : null,
     h('div', { class: 'tgrid' }, ...items.map(item)),
-    decided ? h('div', { class: 'tnote' }, 'Saved on this computer for ', h('b', { text: app.siteOf() || 'this Jira' }), ' — next month’s export uses the same mapping.') : null,
+    decided ? h('div', { class: 'tnote', text: hints.pickSaved(app.siteOf()) }) : null,
     undecided.length
       ? actions(
         h('button', { class: 'tdl', onclick: () => go('main') }, 'Done'),
@@ -56,16 +57,16 @@ export function emptyPage(app, { ds, rows, empties, cov }) {
     .sort((a, b) => b.c.filled - a.c.filled)
     .slice(0, 3);
   return [pageHead(`${plural(empties.length, 'column')} came out empty`),
-    hint(`Jira has these fields, but no issue in ${periodLabel(state.from, state.to)} has a value in them. The Excel will show them empty — exactly as Jira does.`),
+    hint(hints.empty(periodLabel(state.from, state.to))),
     h('div', { class: 'tgrid' }, ...emptyRows.map((r) => {
       const c = r.fieldId ? cov(r.fieldId) : { filled: 0, total: 0 };
       return h('div', { class: 'tres is-warn' }, icon('alert', 16),
         h('span', { class: 'x' }, h('b', { text: r.label }),
-          h('small', { text: `in Jira · filled in ${c.filled} of ${c.total} sample issues` }),
+          h('small', { text: hints.emptyRow(c.filled, c.total) }),
           h('span', { class: 'tbar' }, h('i', { style: `width:${c.total ? Math.round((100 * c.filled) / c.total) : 0}%` }))),
         link('Replace', () => openSearch(app, ds, r, 'empty')));
     })),
-    filled.length ? h('div', { class: 'tnote' }, 'Filled columns, for comparison: ',
+    filled.length ? h('div', { class: 'tnote' }, hints.emptyCompare,
       ...filled.flatMap(({ r, c }, i) => [i ? ' · ' : '', h('b', { text: r.label }), ` ${c.filled} of ${c.total}`])) : null,
     actions(h('button', { class: 'tdl', onclick: () => go('main', { emptyOk: true }) }, 'Keep them empty'))];
 }
@@ -73,7 +74,7 @@ export function emptyPage(app, { ds, rows, empties, cov }) {
 export function allPage(app, { ds, rows, empties }) {
   const { pageHead, hint, actions, doneButton } = app;
   return [pageHead(`Columns (${rows.length})`),
-    hint('Where each report column gets its data in Jira. Select one to map it to another Jira field.'),
+    hint(hints.all),
     h('div', { class: 'tcols' }, ...rows.map((r) => {
       const blank = !isProblem(r) && empties.includes(r.label);
       const tone = isProblem(r) ? 'bad' : (blank ? 'warn' : (r.status === 'empty' ? 'skip' : 'ok'));

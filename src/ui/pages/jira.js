@@ -8,6 +8,7 @@ import { previousMonth, periodLabel } from '../../core/period.js';
 import { bookmarkletUrl, bookmarkletSource } from '../../core/bridge.js';
 import { groupOf, projectsInFile } from '../../core/project-groups.js';
 import { rosterGroups } from '../../core/teams.js';
+import { hints } from '../../config/texts.js';
 
 // The bookmark answers only the page it was dragged from.
 const pageOrigin = () => globalThis.location?.origin || '';
@@ -45,9 +46,9 @@ function settingsStep(app) {
     loaded
       ? h('div', { class: 'tjv__row tjv__file1' }, icon('check', 14),
         h('span', { class: 'x' }, h('b', { text: state.settingsName || 'Settings loaded' }), h('small', { text: facts })),
-        h('button', { class: 'tbtn tbtn--sm', title: 'Load another team’s settings file instead of this one', onclick: app.switchSettings }, icon('upload', 14), 'Switch file'))
+        h('button', { class: 'tbtn tbtn--sm', title: hints.switchFile, onclick: app.switchSettings }, icon('upload', 14), 'Switch file'))
       : h('div', { class: 'tjv__row' },
-        h('span', { class: 'thelp', text: 'Your team lead has the settings file (worklogs-settings-….json). Load it once — the browser keeps it.' }),
+        h('span', { class: 'thelp', text: hints.noSettings }),
         h('button', { class: 'tbtn tbtn--sm', onclick: app.switchSettings }, icon('upload', 14), 'Load file')));
 }
 
@@ -59,8 +60,8 @@ function peopleStep(app) {
   const picked = app.pickedEmails();
   const j = state.jira;
   const note = (email) => {
-    if (j.missing.includes(email)) return h('small', { class: 'tcheck__bad', text: 'not found in Jira' });
-    if (j.guessed.includes(email)) return h('small', { class: 'tcheck__note', text: 'found by search' });
+    if (j.missing.includes(email)) return h('small', { class: 'tcheck__bad', text: hints.notInJira });
+    if (j.guessed.includes(email)) return h('small', { class: 'tcheck__note', text: hints.foundBySearch });
     return null;
   };
   const input = app.inputs.emailInput;
@@ -81,7 +82,7 @@ function peopleStep(app) {
         h('span', { class: 'tgroup__count', text: `${on.length} of ${emails.length}` }),
         link(all ? 'None' : 'All', toggle),
         h('button', {
-          class: 'tbtn tbtn--sm', disabled: busy || !app.jira.site(), title: `A separate Excel with only ${label}`,
+          class: 'tbtn tbtn--sm', disabled: busy || !app.jira.site(), title: hints.separateReport(label),
           onclick: () => app.jira.groupReport(emails, label)
         }, icon('download', 13), j.report === label ? 'Building…' : 'Separate report')),
       ...emails.map((email) => h('label', { class: 'tcheck' },
@@ -98,7 +99,7 @@ function peopleStep(app) {
   const reportNote = j.reportNote ? h('div', { class: j.reportNote.ok ? 'tok' : 'terr', text: j.reportNote.text }) : null;
   return step(2, 'People', aside,
     roster.length ? h('div', { class: 'tgroups' }, ...rosterGroups(state.settings, picked).map(group)) : null,
-    j.report ? h('div', { class: 'thelp', text: state.progress || `Building the ${j.report} report…` }) : reportNote,
+    j.report ? h('div', { class: 'thelp', text: state.progress || hints.buildingReport(j.report) }) : reportNote,
     h('div', { class: 'tjv__row' }, input, h('button', { class: 'tbtn tbtn--sm', onclick: addEmail }, icon('plus', 14), 'Add')));
 }
 
@@ -131,7 +132,7 @@ function whereStep(app) {
       projects,
       h('div', { class: 'tjv__field tjv__field--wide' }, h('span', { text: 'Period' }),
         h('div', { class: 'tjv__dates' }, fromInput, h('span', { class: 'tjv__dash', text: '–' }), toInput))),
-    keys.length ? h('div', { class: 'thelp', text: `Only ${keys.join(', ')} — Jira is asked for these alone, and the file is named after the group.` }) : null);
+    keys.length ? h('div', { class: 'thelp', text: hints.onlyProjects(keys) }) : null);
 }
 
 // After Start: how the report's columns stand against this Jira, and the way
@@ -146,9 +147,7 @@ function columnsBlock(app) {
   return h('section', { class: `tjv__cols${open.length ? ' is-warn' : ''}` },
     h('div', { class: 'tjv__head' }, icon(open.length ? 'alert' : 'check', 16), h('b', { text: 'Columns' }),
       h('span', { class: 'tjv__aside' }, h('span', { class: 'tperiodbox__sum', text: `${found} of ${ctx.rows.length} found in Jira` }))),
-    h('div', { class: 'thelp', text: open.length
-      ? `${plural(open.length, 'column')} ${open.length === 1 ? 'has' : 'have'} no field in this Jira. Pick one, or leave ${open.length === 1 ? 'it' : 'them'} empty — kept for ${app.jira.site()}.`
-      : 'Every column has its Jira field. Have a look, or build the Excel.' }),
+    h('div', { class: 'thelp', text: open.length ? hints.columnsOpen(open.length) : hints.columnsAll }),
     h('div', { class: 'tjv__row' },
       open.length
         ? h('button', { class: 'tbtn', onclick: () => go('pick', { pickKeys: open.map((r) => r.key) }) }, icon('columns', 15), 'Check columns')
@@ -159,10 +158,10 @@ function columnsBlock(app) {
 // Why Start is off, or what it will do.
 function reasonOf(app) {
   const { state } = app;
-  if (!state.settings.roster.length) return 'Load the settings file or add an email first.';
-  if (!app.pickedEmails().length) return 'Pick at least one person.';
-  if (!app.jira.site()) return 'Enter your Jira site.';
-  return 'Opens Jira in a new tab — click the Worklogs bridge bookmark there.';
+  if (!state.settings.roster.length) return hints.reason.noPeople;
+  if (!app.pickedEmails().length) return hints.reason.nobodyTicked;
+  if (!app.jira.site()) return hints.reason.noSite;
+  return hints.reason.ready;
 }
 
 function startBlock(app, working) {
@@ -173,12 +172,12 @@ function startBlock(app, working) {
   // Once the columns or the Excel are up, they hold the main button; Start steps back.
   const done = Boolean(state.preview?.ok && state.preview.signature === app.signature());
   const aside = done || phase === 'mapping';
-  const reason = working ? (state.progress || state.jira.message || 'Working…')
-    : (phase === 'mapping' ? 'Check the columns below, then build the Excel.' : (done ? '' : reasonOf(app)));
+  const reason = working ? (state.progress || state.jira.message || hints.working)
+    : (phase === 'mapping' ? hints.reason.columns : (done ? '' : reasonOf(app)));
   const reading = working && state.previewing;
   return h('div', { class: 'tjv__start' },
     h('button', { class: `${aside ? 'tbtn' : 'tdl'} tjv__go`, disabled: !canStart, onclick: app.jira.start },
-      icon(again ? 'refresh' : 'right', 16), working ? 'Working…' : (again ? 'Start again' : 'Start')),
+      icon(again ? 'refresh' : 'right', 16), working ? hints.working : (again ? 'Start again' : 'Start')),
     reading ? h('div', { class: 'tjv__bar' }, h('i', { style: `width:${Math.max(4, Math.min(100, state.progressPct || 0))}%` })) : null,
     reason ? h('div', { class: 'tjv__reason', text: reason }) : null);
 }
@@ -190,8 +189,8 @@ function statusOf(app) {
   if (j.phase !== 'waiting') return null;
   return h('div', { class: 'tcallout tcallout--compact tcallout--info' }, icon('info', 16),
     h('div', { class: 'tcallout__body' },
-      h('span', {}, 'In the Jira tab that just opened, click the ', h('b', { text: 'Worklogs bridge' }), ' bookmark.'),
-      j.slow ? h('span', {}, 'Nothing yet? Make sure you are signed in to Jira there, and that the bookmark is the latest one (below).') : null));
+      h('span', { text: hints.waiting }),
+      j.slow ? h('span', { text: hints.slow }) : null));
 }
 
 function resultOf(app) {
@@ -205,12 +204,12 @@ function resultOf(app) {
     h('div', { class: 'tjv__file' }, xlsxIcon(40),
       h('div', { class: 'x' }, h('div', { class: 'ttile__name', text: p.filename }),
         h('div', { class: 'ttile__meta' }, `${plural(p.sheets.length, 'sheet')} · `, link('Preview', () => go('preview'))))),
-    state.jira.done ? h('div', { class: 'tjv__done' }, icon('check', 14), 'All done — you can close the Jira tab.') : null,
+    state.jira.done ? h('div', { class: 'tjv__done' }, icon('check', 14), hints.done) : null,
     h('button', { class: 'tdl tjv__go', onclick: app.download }, icon('download', 17), saved ? 'Download again' : 'Download Excel'),
     saved ? h('div', { class: 'tsaved' }, icon('check', 14), 'Saved to your Downloads folder') : null,
     unmapped.length ? h('div', { class: 'tcallout tcallout--compact tcallout--warn' }, icon('alert', 16),
       h('div', { class: 'tcallout__body' },
-        h('span', { text: `${plural(unmapped.length, 'project')} without a group: ${unmapped.map((x) => x.key).join(', ')}.` }),
+        h('span', { text: hints.noGroup(unmapped.map((x) => x.key)) }),
         link('Assign groups', () => go('groups')))) : null);
 }
 
@@ -219,9 +218,9 @@ function bookmarkPanel(app) {
   const { state } = app;
   const open = state.jira.phase === 'waiting' || state.bridgeOpen;
   return h('details', { class: 'tbridge', open, ontoggle: (e) => { state.bridgeOpen = e.target.open; } },
-    h('summary', {}, 'First time? Get the Worklogs bridge bookmark'),
+    h('summary', { text: hints.bookmarkSummary }),
     h('div', { class: 'tbridge__body' },
-      h('a', { class: 'tbtn tbtn--sm', href: bookmarkletUrl(pageOrigin()), draggable: 'true', title: 'Drag me to your bookmarks bar', onclick: (e) => e.preventDefault() }, icon('link', 14), 'Worklogs bridge'),
-      h('div', { class: 'thelp', text: 'Drag it to your bookmarks bar once. It only reads from Jira and only answers this page.' })),
-    h('details', { class: 'tbridge__code' }, h('summary', { text: 'Show the code' }), h('pre', { class: 'jql', text: bookmarkletSource(pageOrigin()) })));
+      h('a', { class: 'tbtn tbtn--sm', href: bookmarkletUrl(pageOrigin()), draggable: 'true', title: hints.bookmarkTitle, onclick: (e) => e.preventDefault() }, icon('link', 14), 'Worklogs bridge'),
+      h('div', { class: 'thelp', text: hints.bookmark })),
+    h('details', { class: 'tbridge__code' }, h('summary', { text: hints.bookmarkCode }), h('pre', { class: 'jql', text: bookmarkletSource(pageOrigin()) })));
 }

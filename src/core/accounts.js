@@ -2,6 +2,8 @@
 // emails are often hidden, so each email is looked up once through the bridge
 // and the answer kept in the settings file.
 
+import { messages } from '../config/texts.js';
+
 const lower = (s) => String(s || '').trim().toLowerCase();
 
 export async function resolveAccounts(fetch, emails, known = {}) {
@@ -17,7 +19,7 @@ export async function resolveAccounts(fetch, emails, known = {}) {
     }
     const res = await fetch(`/rest/api/3/user/search?query=${encodeURIComponent(email)}&maxResults=10`);
     if (res.status === 401 || res.status === 403) {
-      throw Object.assign(new Error('Jira says you aren’t signed in. Sign in to Jira in that tab, then click the bookmark again.'), { code: 'signed-out' });
+      throw Object.assign(new Error(messages.signedOut), { code: 'signed-out' });
     }
     if (!res.ok) { missing.push(email); continue; }
     const users = (await res.json()).filter((u) => u && u.accountId && u.accountType !== 'app');

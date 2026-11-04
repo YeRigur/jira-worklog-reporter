@@ -7,6 +7,7 @@ import { buildPreview, emptyColumns } from '../core/preview.js';
 import { hoursAsText } from '../core/hour-cells.js';
 import { cleanSite } from '../core/format.js';
 import { downloadFile, pickFiles } from '../ui/dom.js';
+import { messages } from '../config/texts.js';
 
 export function createConverter(app) {
   const { state, catalog, installXlsx, runExport } = app;
@@ -78,7 +79,7 @@ export function createConverter(app) {
     const json = files.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json');
     const apply = state.page === 'settings' ? app.loadSettingsText : app.replaceSettingsText;
     for (const f of json) apply(f.name, await f.text());
-    if (!json.length && files.length) state.settingsNote = { ok: false, text: 'Drop the team’s settings file (worklogs-settings-….json) here.' };
+    if (!json.length && files.length) state.settingsNote = { ok: false, text: messages.dropSettings };
     app.render();
   }
 

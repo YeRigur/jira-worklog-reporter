@@ -17,8 +17,8 @@ import { projectsFromSearch } from '../core/project-groups.js';
 import { withSettings } from '../core/settings.js';
 import { cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
+import { messages } from '../config/texts.js';
 
-const DONE_TEXT = 'All done — you can close this tab and check the report on the export page.';
 const browserConnect = (site) => openBridge({ site, open: (url, name) => window.open(url, name), events: window });
 // "worklogs_2026-10.xlsx" + ["Team B", "Group X"] → "worklogs_2026-10 - Team B - Group X.xlsx"
 const tagged = (tags) => {
@@ -95,7 +95,7 @@ export function createJiraRun(app) {
   async function loadFields() {
     if (fields) return fields;
     const res = await cache('/rest/api/3/field');
-    if (!res.ok) throw new Error(`Jira didn’t list its fields (${res.status}).`);
+    if (!res.ok) throw new Error(messages.noFields(res.status));
     fields = await res.json();
     return fields;
   }
@@ -128,12 +128,12 @@ export function createJiraRun(app) {
     state.jira.guessed = [];
     state.jira.done = false;
     if (!(await ensureBridge())) return;
-    set({ phase: 'running', message: 'Finding people in Jira…', slow: false });
-    tell({ text: 'Finding people in Jira…', pct: 3 });
+    set({ phase: 'running', message: messages.findingPeople, slow: false });
+    tell({ text: messages.findingPeople, pct: 3 });
     try {
       found = await findPeople(people);
       await loadFields();
-      tell({ text: 'Looking at a few issues to check the columns…', pct: 4 });
+      tell({ text: messages.sampling, pct: 4 });
       await loadSample(found);
       loadColumns();
     } catch (e) {
@@ -142,13 +142,13 @@ export function createJiraRun(app) {
       return;
     }
     if (!Object.keys(found.accounts).length) {
-      const message = 'None of the ticked people were found in this Jira.';
+      const message = messages.nobodyFound;
       set({ phase: 'error', message, missing: found.missing, guessed: found.guessed });
       tell({ error: true, text: message });
       return;
     }
     set({ phase: 'mapping', message: '', missing: found.missing, guessed: found.guessed });
-    tell({ text: 'Check the columns on the export page, then press Build Excel.', pct: 5 });
+    tell({ text: messages.checkColumns, pct: 5 });
   }
 
   // Build Excel: the columns are settled — read the worklogs and make the file.
@@ -172,7 +172,7 @@ export function createJiraRun(app) {
     app.previewWith(sig, () => app.runOnce(config(), runFetch(), `https://${site()}`, false, { progress: true, onProgress, rename: tagged([state.projectGroup]) })
       .then((made) => {
         state.jira.done = Boolean(made.ok);
-        tell(made.ok ? { done: true, text: DONE_TEXT } : { error: true, text: made.message });
+        tell(made.ok ? { done: true, text: messages.bridgeDone } : { error: true, text: made.message });
         return made;
       }));
   }
@@ -187,17 +187,17 @@ export function createJiraRun(app) {
     try {
       if (!(await ensureBridge())) return;
       set({ phase: before });
-      tell({ text: `Finding ${label} in Jira…`, pct: 3 });
+      tell({ text: messages.findingGroup(label), pct: 3 });
       const got = await findPeople(emails);
       set({ missing: [...new Set([...state.jira.missing, ...got.missing])], guessed: [...new Set([...state.jira.guessed, ...got.guessed])] });
-      if (!Object.keys(got.accounts).length) throw new Error(`Nobody in ${label} was found in this Jira.`);
+      if (!Object.keys(got.accounts).length) throw new Error(messages.nobodyInGroup(label));
       await loadFields();
       if (!Object.keys(state.bindings).length) loadColumns();
       const made = await app.runOnce(exportConfig(emails, got), runFetch(), `https://${site()}`, true,
         { progress: true, onProgress, rename: tagged([label, state.projectGroup]) });
       if (!made.ok) throw new Error(made.message);
-      set({ reportNote: { ok: true, text: `Saved ${made.filename} to your Downloads folder.` } });
-      tell({ done: true, text: DONE_TEXT });
+      set({ reportNote: { ok: true, text: messages.savedTo(made.filename) } });
+      tell({ done: true, text: messages.bridgeDone });
     } catch (e) {
       set({ reportNote: { ok: false, text: e.message } });
       tell({ error: true, text: e.message });

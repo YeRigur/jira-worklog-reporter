@@ -4,6 +4,7 @@ import { h, icon } from '../dom.js';
 import { suggestFields, searchFields } from '../../core/suggest.js';
 import { plural } from '../../core/format.js';
 import { isProblem, defaultOf, usedFieldIds, pickable, currentChoice, leaveText } from '../../core/column-choice.js';
+import { hints } from '../../config/texts.js';
 
 // Attach a field ('fieldId'), go without ('#skip') or go back to the column's
 // own source ('#auto').
@@ -67,7 +68,7 @@ export function paintSearch(app) {
     suggested.length ? h('div', { class: 'tresults tresults--few' }, ...suggested.map((f) => fieldOption({ f, c: cov(f.id) }))) : null,
     h('div', { class: 'tgrp', text: q ? (shown.length ? `Matching “${q}”` : `Nothing matches “${q}”`) : 'All Jira fields · most filled first' }),
     h('div', { class: 'tresults' }, ...shown.map(fieldOption)),
-    found.length > shown.length ? h('div', { class: 'tmore', text: `${found.length - shown.length} more — type to narrow down` }) : null,
+    found.length > shown.length ? h('div', { class: 'tmore', text: hints.more(found.length - shown.length) }) : null,
     h('div', { class: 'tgrp', text: 'Or' }),
     h('div', { class: 'tresults tresults--few' }, option(escape.value, escape.title, escape.sub, '', false)),
     actions(h('button', { class: 'tdl', disabled: !picked, onclick: () => { applyChoice(app, row, picked); app.go(state.searchBack); } },

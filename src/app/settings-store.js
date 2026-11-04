@@ -7,6 +7,7 @@ import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
 import { freshJira } from './state.js';
+import { messages } from '../config/texts.js';
 
 const SETTINGS_KEY = 'simplelife-worklogs-settings';
 const PICKED_KEY = 'simplelife-worklogs-picked';
@@ -73,9 +74,9 @@ export function createSettingsStore(app) {
       state.jira = freshJira();
       state.projectGroup = '';
       reloadSiteChoices();
-      state.settingsNote = { ok: true, text: `Switched to “${name}”: ${plural(s.roster.length, 'person', 'people')}${s.site ? ` on ${s.site}` : ''}.` };
+      state.settingsNote = { ok: true, text: messages.switched(name, plural(s.roster.length, 'person', 'people'), s.site) };
     } catch (e) {
-      state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
+      state.settingsNote = { ok: false, text: messages.unreadable(name, e.message) };
     }
   };
 
@@ -83,9 +84,9 @@ export function createSettingsStore(app) {
     try {
       const s = parseSettings(text);
       keepName(name);
-      applySettings(s, `Loaded “${name}”: ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}, ${plural(s.roster.length, 'roster email')}, ${plural(Object.keys(s.teams).length, 'team assignment')}.`);
+      applySettings(s, messages.loaded(name, `${plural(s.roster.length, 'person', 'people')}, ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}`));
     } catch (e) {
-      state.settingsNote = { ok: false, text: `“${name}”: ${e.message}` };
+      state.settingsNote = { ok: false, text: messages.unreadable(name, e.message) };
     }
   };
 
@@ -93,7 +94,7 @@ export function createSettingsStore(app) {
     const blob = new Blob([`${JSON.stringify(state.settings, null, 2)}\n`], { type: 'application/json' });
     const name = settingsFileName(state.settings.site || cleanSite(state.site));
     downloadFile(name, blob);
-    state.settingsNote = { ok: true, text: `Saved ${name} to your Downloads folder. Keep it out of shared folders — it holds people’s emails.` };
+    state.settingsNote = { ok: true, text: messages.savedSettings(name) };
     app.render();
   };
 
@@ -105,7 +106,7 @@ export function createSettingsStore(app) {
     state.settings.roster = [...state.settings.roster, ...added];
     keepSettings();
     state.result = null;
-    state.settingsNote = { ok: true, text: text ? `Filter saved${added.length ? `; ${plural(added.length, 'new email')} joined the roster` : ''}.` : 'Filter cleared — everyone on the roster is ticked at first.' };
+    state.settingsNote = { ok: true, text: text ? messages.filterSaved(added.length ? plural(added.length, 'new email') : '') : messages.filterCleared };
     app.render();
   };
 
@@ -134,7 +135,7 @@ export function createSettingsStore(app) {
     if (!state.settings.roster.includes(email)) {
       state.settings.roster = [...state.settings.roster, email];
       keepSettings();
-      state.settingsNote = { ok: true, text: `Added ${email}. Save the settings file to pass it on.` };
+      state.settingsNote = { ok: true, text: messages.emailAdded(email) };
     }
     if (state.picked !== null && !state.picked.includes(email)) { state.picked = [...state.picked, email]; savePicked(); }
     return true;

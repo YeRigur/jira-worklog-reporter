@@ -1,6 +1,7 @@
 // What the team's settings file holds, the team's filter, and the file itself.
 import { h, icon } from '../dom.js';
 import { plural } from '../../core/format.js';
+import { hints } from '../../config/texts.js';
 
 export function settingsPage(app) {
   const { state, go, pageHead, hint, actions, settingsNote } = app;
@@ -12,7 +13,7 @@ export function settingsPage(app) {
   const line = (ok, title, text) => h('div', { class: `tres${ok ? ' is-ok' : ' is-warn'}` }, icon(ok ? 'check' : 'alert', 16),
     h('span', { class: 'x' }, h('b', { text: title }), h('small', { text })));
   return [pageHead('Settings'),
-    hint('Everything private lives here, not in the page: the Jira site, the team’s emails, Teams groups, project groups and the columns picked by hand. This computer keeps what you load; save it as a file to pass to a colleague.'),
+    hint(hints.settings),
     h('div', { class: 'tgrid' },
       line(Boolean(s.site), 'Jira site', s.site || 'none — type it on the export page'),
       line(s.roster.length > 0, 'People', s.roster.length ? `${plural(s.roster.length, 'email')} on the roster · ${plural(Object.keys(s.accounts).length, 'Jira account')} known` : 'nobody yet — add emails on the export page'),
@@ -22,10 +23,10 @@ export function settingsPage(app) {
     h('label', { class: 'tfield' }, 'Team filter (JQL) — the people it names are ticked at first, and join the roster', jqlInput),
     h('div', { class: 'row' },
       h('button', { class: 'tbtn', onclick: () => app.saveJql(jqlInput.value.trim()) }, 'Save filter'),
-      h('span', { class: 'muted small', text: 'Then save the settings file to keep it.' })),
+      h('span', { class: 'muted small', text: hints.settingsKeep })),
     settingsNote(),
     actions(
       h('button', { class: 'tdl', onclick: app.saveSettingsFile }, icon('download', 16), 'Save settings file'),
-      h('button', { class: 'tbtn', title: 'Adds another file to these settings', onclick: app.chooseSettings }, 'Add a settings file'),
+      h('button', { class: 'tbtn', title: hints.settingsAdd, onclick: app.chooseSettings }, 'Add a settings file'),
       h('button', { class: 'tbtn', onclick: () => go('main') }, 'Back'))];
 }

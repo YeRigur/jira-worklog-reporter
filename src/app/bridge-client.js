@@ -3,12 +3,13 @@
 // Nothing here connects anywhere — it only posts messages to the tab it opened.
 import { BRIDGE_VERSION, allowRequest } from '../core/bridge.js';
 import { jiraBridge } from '../config/jira-bridge.js';
+import { messages } from '../config/texts.js';
 
 const MESSAGES = {
-  'popup-blocked': 'Your browser blocked the Jira tab. Allow pop-ups for this page, then press Start again.',
-  closed: 'The Jira tab was closed. Press Start again — what was already fetched is kept.',
-  'old-bridge': 'Your Worklogs bridge bookmark is from an older version. Drag the new one below to your bookmarks bar (replace the old one), then click it in the Jira tab. This one stays valid when the page changes.',
-  timeout: 'Jira didn’t answer within a minute. Check the Jira tab, then press Start again.'
+  'popup-blocked': messages.popupBlocked,
+  closed: messages.tabClosed,
+  'old-bridge': messages.oldBookmark,
+  timeout: messages.timeout
 };
 
 export class BridgeError extends Error {
