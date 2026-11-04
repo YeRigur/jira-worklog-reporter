@@ -45,15 +45,16 @@ const SECTION = { pick: 'all', empty: 'all', search: 'all', period: 'main', note
 function renderNav(app, nav, ctx) {
   const { state } = app;
   const ds = state.dataset;
-  const here = ds ? (SECTION[state.page] || (PAGES[state.page] ? state.page : 'main')) : (state.page === 'settings' ? 'settings' : 'main');
+  const here = ds ? (SECTION[state.page] || (PAGES[state.page] ? state.page : 'main')) : (['settings', 'preview', 'groups'].includes(state.page) ? state.page : 'main');
   const item = (page, iconName, label, { badge = 0, tone = 'warn', open = true } = {}) => h('button', {
     class: `tnav__item${here === page ? ' is-on' : ''}`, disabled: !open, 'aria-current': here === page ? 'page' : null,
     onclick: () => app.go(page)
   }, icon(iconName, 16), h('span', { class: 'tnav__label', text: label }),
   badge ? h('span', { class: `tnav__badge tnav__badge--${tone}`, text: String(badge) }) : null);
   if (!ds) {
-    nav.replaceChildren(item('main', 'upload', 'Upload'), item('all', 'columns', 'Columns', { open: false }),
-      item('preview', 'eye', 'Preview', { open: false }), item('groups', 'folder', 'Project groups', { open: false }),
+    const jiraReady = state.source === 'jira' && Boolean(state.preview?.ok);
+    nav.replaceChildren(item('main', state.source === 'jira' ? 'home' : 'upload', state.source === 'jira' ? 'Export' : 'Upload'), item('all', 'columns', 'Columns', { open: false }),
+      item('preview', 'eye', 'Preview', { open: jiraReady }), item('groups', 'folder', 'Project groups', { open: jiraReady }),
       item('authors', 'users', 'Authors', { open: false }), item('settings', 'settings', 'Settings'));
     return;
   }
@@ -96,8 +97,13 @@ export function render(app, { card, nav }) {
   let mode = 'start';
   let ctx = null;
   app.inputs.jqlBox.textContent = app.teamJql();
+  // Jira mode has no CSV: the preview and the groups read what Jira answered.
+  const jiraPage = !ds && state.source === 'jira' && (state.page === 'preview' || state.page === 'groups') && state.preview?.ok;
   if (!ds && state.page === 'settings') {
     content = settingsPage(app);
+    mode = 'page';
+  } else if (jiraPage) {
+    content = PAGES[state.page](app, { ds: app.jira.projects() });
     mode = 'page';
   } else if (!ds) {
     content = startPage(app);

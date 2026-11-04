@@ -69,3 +69,19 @@ test('picking nobody keeps Start from running', async () => {
   assert.equal(opened, 1);
   hook.app.pickPeople([A.email, B.email]);
 });
+
+test('the start screen shows the people, the site, Start and the bookmark; preview and groups open', async () => {
+  hook.app.pickPeople([A.email, B.email]);
+  await hook.jira.start();
+  await settle();
+  hook.state.page = 'main';
+  hook.render();
+  const text = root.textContent;
+  for (const s of ['People', A.email, 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel', 'Or upload a CSV']) assert.ok(text.includes(s), s);
+  for (const page of ['preview', 'groups']) {
+    hook.state.page = page;
+    assert.doesNotThrow(() => hook.render(), page);
+  }
+  hook.state.page = 'main';
+  hook.render();
+});

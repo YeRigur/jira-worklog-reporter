@@ -3,10 +3,17 @@ import { h, icon, copyText } from '../dom.js';
 import { DATE_PATTERNS } from '../../core/jira-dates.js';
 import { previousMonth, periodLabel } from '../../core/period.js';
 import { monthsOf } from '../../core/filter-jql.js';
+import { jiraPanel } from './jira.js';
 
 export function startPage(app) {
   const { state, link, step, copyJql, settingsNote, settingsSummary, go } = app;
   const { jqlBox } = app.inputs;
+
+  if (state.source === 'jira') {
+    return h('div', { class: 'tstart' },
+      h('div', { class: 'tstart__file' }, jiraPanel(app)),
+      h('div', { class: 'tstart__guide' }, ...[periodPanel(app, { jira: true }), settingsLine(app), settingsNote()].filter(Boolean)));
+  }
 
   // Left: the file — the drop area, and what went wrong with the last one.
   const upload = [h('div', {
@@ -17,6 +24,7 @@ export function startPage(app) {
   h('div', { class: 'tpt', text: 'Upload the Jira CSV export' }),
   h('div', { class: 'tpm', text: 'Drag and drop it anywhere on this page. Several files are merged into one report.' }),
   h('span', { class: 'tdrop__btn' }, 'Browse files'))];
+  upload.push(h('div', { class: 'tlinks' }, link('Back to export from Jira', () => { state.source = 'jira'; app.render(); })));
   if (state.error) {
     upload.push(h('div', { class: 'terr', text: state.error.message }));
     if (state.error.code === 'date-format' || state.datePattern) {
@@ -29,7 +37,6 @@ export function startPage(app) {
 
   // Right: what the file should be — the period, how to export it, the settings.
   // Emails come from the roster alone — people found by Jira don't make up for it.
-  const ready = state.settings.roster.length > 0;
   const guide = [
     periodPanel(app),
     h('section', { class: 'tpanel' },
@@ -40,11 +47,7 @@ export function startPage(app) {
         step(2, h('b', { text: 'Export all fields' }), h('span', {}, 'Choose ', h('b', { text: '⋯ → Export → CSV (all fields)' }), '. “Current fields” leaves the worklogs out.')),
         step(3, h('b', { text: 'Upload it' }), h('span', { text: 'Drop it on the upload area. The Excel covers the reporting period above.' }))),
       jqlBox),
-    h('div', { class: `tsetline${ready ? '' : ' is-missing'}` },
-      icon(ready ? 'check' : 'alert', 15),
-      h('span', { class: 'x' }, h('b', { text: 'Team settings: ' }), settingsSummary(),
-        ready ? '' : '. Without a roster, emails, teams and the filter’s people are missing — load your team’s settings file.'),
-      link(ready ? 'Open settings' : 'Load settings file', () => (ready ? go('settings') : app.chooseSettings()))),
+    settingsLine(app),
     settingsNote()
   ];
   return h('div', { class: 'tstart' },
@@ -54,7 +57,7 @@ export function startPage(app) {
 
 // The period: two dates, what they mean, and — when they span several months —
 // one export per month (Jira caps a CSV at 1000 issues), each copied in turn.
-function periodPanel(app) {
+function periodPanel(app, { jira = false } = {}) {
   const { state } = app;
   const { fromInput, toInput } = app.inputs;
   const days = state.from && state.to ? Math.round((Date.parse(state.to) - Date.parse(state.from)) / 86400000) + 1 : 0;
@@ -73,10 +76,10 @@ function periodPanel(app) {
         h('span', { class: 'tperiodbox__sum', text: `${periodLabel(state.from, state.to)}${days > 0 ? ` · ${days} days` : ''}` })),
       resetButton),
     h('div', { class: 'tdates' }, h('label', { class: 'tfield' }, 'Start date', fromInput), h('label', { class: 'tfield' }, 'End date', toInput)),
-    h('div', { class: 'thelp', text: 'The JQL below and the Excel both use this period.' }),
+    h('div', { class: 'thelp', text: jira ? 'The Excel covers this period.' : 'The JQL below and the Excel both use this period.' }),
     // One month needs no warning, but its JQL is copied the same way.
-    months.length === 1 ? monthPicker(app, months) : null,
-    months.length > 1 ? h('div', { class: `tcallout tcallout--compact tcallout--${tooLong ? 'warn' : 'info'}` },
+    !jira && months.length === 1 ? monthPicker(app, months) : null,
+    !jira && months.length > 1 ? h('div', { class: `tcallout tcallout--compact tcallout--${tooLong ? 'warn' : 'info'}` },
       icon(tooLong ? 'alert' : 'info', 16),
       h('div', { class: 'tcallout__body' },
         h('span', {}, h('b', { text: `${months.length} months: ` }),
@@ -112,4 +115,15 @@ function monthPicker(app, months) {
     app.render();
   } }, icon(done ? 'check' : 'copy', 14), h('span', { text: done ? 'Copy again' : 'Copy JQL' }));
   return h('div', { class: 'tmonthrow' }, select, button, progress(state, months));
+}
+
+// The settings in one line, with the way to load or open them.
+function settingsLine(app) {
+  const { state, link, settingsSummary, go } = app;
+  const ready = state.settings.roster.length > 0;
+  return h('div', { class: `tsetline${ready ? '' : ' is-missing'}` },
+    icon(ready ? 'check' : 'alert', 15),
+    h('span', { class: 'x' }, h('b', { text: 'Team settings: ' }), settingsSummary(),
+      ready ? '' : '. Without a roster, emails, teams and the filter’s people are missing — load your team’s settings file.'),
+    link(ready ? 'Open settings' : 'Load settings file', () => (ready ? go('settings') : app.chooseSettings())));
 }

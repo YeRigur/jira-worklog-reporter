@@ -19,6 +19,7 @@ export function createInputs(app) {
         app.render();
       }
     }),
+    emailInput: h('input', { type: 'email', placeholder: 'name@company.com', autocomplete: 'off', 'aria-label': 'Email to add' }),
     jqlInput: h('textarea', { class: 'tpaste tjql', rows: '8', placeholder: 'worklogDate >= startOfMonth(-1) AND worklogDate < startOfMonth() AND worklogAuthor in ("…")' }),
     searchInput: h('input', {
       type: 'search', class: 'tsearch__input', placeholder: 'Search columns in this file', autocomplete: 'off',
