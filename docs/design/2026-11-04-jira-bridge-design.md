@@ -116,6 +116,7 @@ Jira tab:
 | GET | `/rest/api/3/user/search` (query allowed) |
 | GET | `/rest/api/3/user` (query allowed) |
 | GET | `/rest/api/3/myself` |
+| GET | `/rest/api/3/field` (to find by-label columns' field ids, as the extension's configurator does) |
 
 `path` must start with a single `/`, contain no `//`, no `..`, no scheme, and
 no `#`. Anything else is refused. The same check is exported for tests and is
@@ -156,9 +157,9 @@ the source the bookmarklet text is built from, so they cannot drift.
   catalog's column template, every catalog field treated as available (the API
   returns any field). No hand-made column bindings in this mode.
 - **Response cache** (`src/core/fetch-cache.js`): wraps the bridge fetch; key
-  = method + path + body; only 2xx responses are kept. The first Preview goes
+  = method + path + body; only 200 responses are kept (a 204 cannot be rebuilt with a body). The first Preview goes
   to Jira and shows progress; Summary toggles and Download replay from the
-  cache. The cache is cleared when period, people or site change. After a
+  cache. When period, people or site change, the result is dropped and Start is pressed again (the bridge stays connected, so it is quick); the cache is cleared then. After a
   closed tab, Start again re-requests only what is missing.
 - **Signature** (what triggers a rebuild) in Jira mode: source, site, period,
   checked accountIds, summary toggle, settings revision.
@@ -182,7 +183,7 @@ the source the bookmarklet text is built from, so they cannot drift.
 
 ## Testing (`node --test`)
 
-- `tests/bridge.test.js`: allow-list accepts the five calls and refuses `//evil.com/x`,
+- `tests/bridge.test.js`: allow-list accepts the six calls and refuses `//evil.com/x`,
   `/rest/api/3/../x`, `https://…`, `DELETE`, `PUT`, other paths; the generated
   bookmarklet parses as JS (`new Function`) and contains the given origin.
 - `tests/bridge-client.test.js`: fake window pair — wrong origin/source ignored,
