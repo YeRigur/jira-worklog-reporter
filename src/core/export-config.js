@@ -80,3 +80,19 @@ export function buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo
   };
 }
 
+
+// Jira mode has no CSV: Jira's field list (/rest/api/3/field) stands in for
+// the CSV's columns, and every field it lists can be asked for.
+export function jiraModel(fields) {
+  const list = (Array.isArray(fields) ? fields : [])
+    .filter((f) => f && f.id)
+    .map((f) => ({ id: String(f.id), name: String(f.name || f.id), custom: Boolean(f.custom) }));
+  return { fields: list, specs: Object.fromEntries(list.map((f) => [f.id, { kind: 'jira' }])), datePattern: '' };
+}
+
+export function buildJiraExportConfig({ scriptsJson, site, fields, dateFrom, dateTo, withSummary, users, meta, teamEmails = [] }) {
+  const dataset = { site, model: jiraModel(fields), authors: {} };
+  const config = buildExportConfig({ scriptsJson, dataset, meta, dateFrom, dateTo, withSummary, users });
+  config._teamEmails = [...teamEmails];
+  return config;
+}

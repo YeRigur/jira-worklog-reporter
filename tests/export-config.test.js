@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { catalog } from '../src/config/catalog.js';
-import { fieldIdsFromCatalog, exportDefaults, buildExportConfig } from '../src/core/export-config.js';
+import { fieldIdsFromCatalog, exportDefaults, buildExportConfig, buildJiraExportConfig, jiraModel } from '../src/core/export-config.js';
 
 const SCRIPTS_JSON = catalog;
 
@@ -72,4 +72,26 @@ test('the run can be limited to some authors', () => {
   const dataset = { site: '', model: { fields: FIELDS, specs: Object.fromEntries(FIELDS.map((f) => [f.id, {}])) }, authors: { k1: {}, k2: {} } };
   const cfg = buildExportConfig({ scriptsJson: SCRIPTS_JSON, dataset, meta: {}, dateFrom: '2026-08-01', dateTo: '2026-08-31', withSummary: false, users: ['k2'] });
   assert.deepEqual(cfg.users, ['k2']);
+});
+
+const JIRA_FIELDS = [
+  { id: 'summary', name: 'Summary' }, { id: 'issuetype', name: 'Issue Type' }, { id: 'project', name: 'Project' },
+  { id: 'timetracking', name: 'Time tracking' }, { id: 'parent', name: 'Parent' }, { id: 'status', name: 'Status' },
+  { id: 'customfield_10084', name: 'Complexity Levels', custom: true }, { id: 'customfield_10500', name: 'Difficulty', custom: true }
+];
+
+test('Jira mode: every field Jira lists is there, by-label columns find their ids', () => {
+  const model = jiraModel(JIRA_FIELDS);
+  assert.ok(Object.hasOwn(model.specs, 'timetracking'));
+  assert.equal(model.fields.find((f) => f.id === 'customfield_10500').name, 'Difficulty');
+  const config = buildJiraExportConfig({
+    scriptsJson: SCRIPTS_JSON, site: 'acme.atlassian.net', fields: JIRA_FIELDS, dateFrom: '2026-08-01', dateTo: '2026-08-31',
+    withSummary: true, users: ['712020:a'], meta: { '712020:a': { displayName: '', email: 'a@x.com' } }, teamEmails: ['a@x.com']
+  });
+  assert.deepEqual(config.users, ['712020:a']);
+  assert.deepEqual(config._teamEmails, ['a@x.com']);
+  assert.deepEqual(config.sheets, ['summary', 'details']);
+  assert.deepEqual(config._userMetadata, { '712020:a': { displayName: '', email: 'a@x.com' } });
+  for (const id of ['_projectGroup', '_timeSpentHours', 'customfield_10084', 'customfield_10500']) assert.ok(config.exportFields.includes(id), id);
+  assert.equal(config.dateFrom, '2026-08-01');
 });
