@@ -50,7 +50,7 @@ export function startDemo(app, storage) {
       settings: emptySettings(), settingsNote: null, settingsName: '', bindings: {}, skipped: [],
       site: '', withSummary: null, busy: false, progress: '', progressPct: 0, from: period.from, to: period.to,
       picked: null, jira: freshJira(), projectGroup: '', preview: null, previewing: null, result: null,
-      savedSig: '', savedAs: '', page: 'main', pickKeys: [], emptyOk: false
+      savedSig: '', savedAs: '', page: 'main', pickKeys: [], emptyOk: false, wizStep: 0, openGroups: []
     });
     inputs.siteInput.value = '';
     inputs.fromInput.value = period.from;

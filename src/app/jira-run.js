@@ -147,6 +147,8 @@ export function createJiraRun(app) {
       tell({ error: true, text: message });
       return;
     }
+    // The page moves on to the columns step by itself.
+    state.wizStep = Math.max(state.wizStep || 0, 4);
     set({ phase: 'mapping', message: '', missing: found.missing, guessed: found.guessed });
     tell({ text: messages.checkColumns, pct: 5 });
   }
@@ -154,6 +156,7 @@ export function createJiraRun(app) {
   // Build Excel: the columns are settled — read the worklogs and make the file.
   function build() {
     if (state.jira.phase !== 'mapping') return;
+    state.wizStep = 5;
     set({ phase: 'ready' });
   }
 

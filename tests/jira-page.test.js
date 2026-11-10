@@ -34,9 +34,9 @@ hook.jira.setConnect(() => {
   return lastJira = createFakeJira({ dataset, authors: Object.fromEntries([A, B, C, D].map((p) => [p.key, person(p)])), people: [A, B].map(person) });
 });
 
-test('the page starts on the export steps — five sections, no CSV anywhere', () => {
+test('the page starts on the export steps — five sections, five steps, no CSV anywhere', () => {
   const text = root.textContent;
-  for (const s of ['Export', 'Columns', 'Preview', 'Project groups', 'Settings', 'Team settings', 'People', 'Start']) assert.ok(text.includes(s), s);
+  for (const s of ['Export', 'Columns', 'Preview', 'Project groups', 'Settings', 'Team', 'People', 'Jira & period', 'Excel', 'Which team?']) assert.ok(text.includes(s), s);
   assert.doesNotMatch(text, /CSV|Authors/);
 });
 
@@ -93,13 +93,20 @@ test('the start screen shows the people, the site, Start and the bookmark; previ
   await settle();
   hook.state.page = 'main';
   hook.render();
-  const text = root.textContent;
-  for (const s of ['People', 'Jira site', 'Start', 'Worklogs bridge', 'Download Excel']) assert.ok(text.includes(s), s);
-  assert.ok(!text.includes(A.email), 'groups start folded');
-  hook.state.openGroups = [...new Set(hook.app.state.openGroups.concat(['No group', 'Team UA']))];
+  assert.equal(hook.state.wizStep, 5, 'Build Excel moves on to the Excel step');
+  assert.ok(root.textContent.includes('Download Excel'));
+  hook.state.wizStep = 3;
   hook.render();
-  assert.ok(root.textContent.includes(A.email), 'an unfolded group lists its people');
+  for (const s of ['Jira site', 'Last month', 'Start again', 'Worklogs bridge']) assert.ok(root.textContent.includes(s), s);
+  hook.state.wizStep = 2;
+  hook.render();
+  assert.ok(root.textContent.includes('Separate Excel'));
+  assert.ok(!root.textContent.includes(A.email), 'groups show as tiles, names folded');
+  hook.state.openGroups = ['No group'];
+  hook.render();
+  assert.ok(root.textContent.includes(A.email), 'an opened group lists its people');
   hook.state.openGroups = [];
+  hook.state.wizStep = 5;
   for (const page of ['preview', 'groups', 'all', 'pick', 'empty', 'settings']) {
     hook.state.page = page;
     assert.doesNotThrow(() => hook.render(), page);
@@ -121,9 +128,10 @@ test('people are listed by team group, and a group gets a separate Excel of its 
   const groupByDomain = { 'ua.example.com': 'Team UA', 'br.example.com': 'Team BR' };
   await hook.load([file('worklogs-settings.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email, C.email], groupByDomain }), 'application/json')]);
   hook.app.pickPeople([C.email]);
+  hook.state.wizStep = 2;
   hook.render();
   const text = root.textContent;
-  for (const s of ['Team UA', 'Team BR', 'Separate report']) assert.ok(text.includes(s), s);
+  for (const s of ['Team UA', 'Team BR', 'Separate Excel']) assert.ok(text.includes(s), s);
   await hook.jira.groupReport([A.email, B.email], 'Team UA');
   assert.equal(hook.state.jira.reportNote?.ok, true, hook.state.jira.reportNote?.text);
   assert.match(hook.state.jira.reportNote.text, / - Team UA\.xlsx/);

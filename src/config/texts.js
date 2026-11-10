@@ -3,6 +3,15 @@
 // on buttons and fields stay next to the button or field.
 
 export const hints = {
+  // Export: the steps, a title and one line each
+  steps: {
+    team: { title: 'Which team?', sub: 'The settings file holds the people, the Jira site and the groups.' },
+    people: { title: 'Who goes in the report?', sub: 'The team filter’s people are ticked. Open a group to change it.' },
+    where: { title: 'Which Jira and which period?', sub: 'Start opens Jira in a new tab — click the bookmark there.' },
+    columns: { title: 'Check the columns', sub: 'Each report column and the Jira field it comes from.' },
+    excel: { title: 'Your Excel', sub: 'Download it, or look at the preview first.' }
+  },
+  stepOf: (n, total) => `Step ${n} of ${total}`,
   // Export: settings and people
   noSettings: 'Load the settings file once — the browser keeps it.',
   switchFile: 'Use another settings file instead of this one',

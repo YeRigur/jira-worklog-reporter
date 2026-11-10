@@ -12,6 +12,14 @@ export function previousMonth(today = new Date()) {
   };
 }
 
+// The month that is going on now, whole.
+export function thisMonth(today = new Date()) {
+  return {
+    from: isoDay(new Date(today.getFullYear(), today.getMonth(), 1)),
+    to: isoDay(new Date(today.getFullYear(), today.getMonth() + 1, 0))
+  };
+}
+
 const bounds = (from, to) => [
   from ? Date.parse(`${from}T00:00:00.000Z`) : -Infinity,
   to ? Date.parse(`${to}T23:59:59.999Z`) : Infinity
