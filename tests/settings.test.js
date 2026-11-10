@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSettings, mergeSettings, withSettings, settingsFromExtension, publicScriptsJson, emailsIn, settingsFileName } from '../src/core/settings.js';
+import { parseSettings, mergeSettings, withSettings, settingsFromExtension, publicScriptsJson, emailsIn, settingsFileName, defaultPeopleOf } from '../src/core/settings.js';
 
 const EXT = {
   projectGroups: { 'Brand PGL': ['AC'] },
@@ -87,4 +87,14 @@ test('the settings file is named after the Jira instance, without atlassian.net'
   assert.equal(settingsFileName('acme.atlassian.net'), 'worklogs-settings-acme.json');
   assert.equal(settingsFileName('jira.acme.com'), 'worklogs-settings-jira.acme.com.json');
   assert.equal(settingsFileName(''), 'worklogs-settings.json');
+});
+
+test('the people ticked at first: defaultPeople, else the ones an older file’s JQL names', () => {
+  const fresh = parseSettings(JSON.stringify({ roster: ['a@x.com', 'b@x.com'], defaultPeople: ['B@x.com', 'bad', 'b@x.com'] }));
+  assert.deepEqual(fresh.defaultPeople, ['b@x.com']);
+  assert.deepEqual(defaultPeopleOf(fresh), ['b@x.com']);
+  const old = parseSettings(JSON.stringify({ roster: ['a@x.com', 'b@x.com'], jql: 'worklogAuthor in ("a@x.com")' }));
+  assert.deepEqual(old.defaultPeople, []);
+  assert.deepEqual(defaultPeopleOf(old), ['a@x.com']);
+  assert.deepEqual(defaultPeopleOf(parseSettings('{}')), []);
 });

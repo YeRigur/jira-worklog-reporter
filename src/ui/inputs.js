@@ -20,7 +20,6 @@ export function createInputs(app) {
     }),
     // type=text with an email keyboard: password managers leave it alone.
     emailInput: h('input', { type: 'text', inputmode: 'email', placeholder: 'name@company.com', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'aria-label': 'Email to add' }),
-    jqlInput: h('textarea', { class: 'tpaste tjql', rows: '6', placeholder: 'worklogDate >= startOfMonth(-1) AND worklogDate < startOfMonth() AND worklogAuthor in ("…")' }),
     searchInput: h('input', {
       type: 'search', class: 'tsearch__input', placeholder: 'Search Jira fields', autocomplete: 'off',
       oninput: (e) => { state.searchQuery = e.target.value; app.paintSearch(); }

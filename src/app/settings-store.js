@@ -2,7 +2,7 @@
 // filter, the accounts found in Jira, project groups, and per site the columns
 // attached by hand and the ones gone without. Kept on this computer once
 // loaded; saved back as a file to pass on.
-import { emptySettings, parseSettings, emailsIn, settingsFileName } from '../core/settings.js';
+import { emptySettings, parseSettings, settingsFileName, defaultPeopleOf } from '../core/settings.js';
 import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
@@ -82,17 +82,69 @@ export function createSettingsStore(app) {
     app.render();
   };
 
-  // The team's filter: the people it names are the team — ticked at first,
-  // and on the roster.
-  const saveJql = (text) => {
-    const added = emailsIn(text).filter((e) => !state.settings.roster.includes(e));
-    state.settings.jql = text;
-    state.settings.roster = [...state.settings.roster, ...added];
-    keepSettings();
-    state.result = null;
-    state.settingsNote = { ok: true, text: text ? messages.filterSaved(added.length ? plural(added.length, 'new email') : '') : messages.filterCleared };
-    app.render();
+  // ---------- the Settings form: plain edits, each kept at once ----------
+
+  const lowerTrim = (v) => String(v || '').trim().toLowerCase();
+  const changed = () => { keepSettings(); state.result = null; app.render(); };
+
+  // Ticked at first on the export page. Saving it this way drops an older
+  // file's JQL, which only ever served for this.
+  const setDefaultPerson = (email, on) => {
+    const now = defaultPeopleOf(state.settings).filter((e) => state.settings.roster.includes(e));
+    state.settings.defaultPeople = on ? [...new Set([...now, email])] : now.filter((e) => e !== email);
+    state.settings.jql = '';
+    changed();
   };
+
+  // A person's group, by hand (Teams); empty falls back to the email's domain.
+  const setPersonGroup = (email, raw) => {
+    const group = String(raw || '').trim();
+    const own = state.settings.teams[email] || { group: '', projects: [] };
+    if (!group && !own.projects.length) delete state.settings.teams[email];
+    else state.settings.teams[email] = { ...own, group };
+    changed();
+  };
+
+  const removePerson = (email) => {
+    const s = state.settings;
+    s.roster = s.roster.filter((e) => e !== email);
+    s.defaultPeople = (s.defaultPeople || []).filter((e) => e !== email);
+    delete s.teams[email];
+    delete s.accounts[email];
+    if (state.picked) { state.picked = state.picked.filter((e) => e !== email); savePicked(); }
+    changed();
+  };
+
+  // Email domain → group: [domain, group] pairs, edited in place.
+  const domainRows = () => Object.entries(state.settings.groupByDomain || {});
+  const setDomains = (rows) => {
+    state.settings.groupByDomain = Object.fromEntries(rows
+      .map(([d, g]) => [lowerTrim(d).replace(/^@/, ''), String(g || '').trim()])
+      .filter(([d]) => d));
+    changed();
+  };
+  const setDomain = (i, domain, group) => { const rows = domainRows(); rows[i] = [domain, group]; setDomains(rows); };
+  const addDomain = () => { setDomains([...domainRows(), ['new-domain.com', '']]); };
+  const removeDomain = (i) => { setDomains(domainRows().filter((_, k) => k !== i)); };
+
+  // Project group → project keys: [name, keys] pairs; keys typed with commas.
+  const projectRows = () => Object.entries(state.settings.projectGroups || {});
+  const setProjectRows = (rows) => {
+    const out = {};
+    for (const [name, keys] of rows) {
+      const n = String(name || '').trim();
+      if (!n) continue;
+      const list = (Array.isArray(keys) ? keys : String(keys || '').split(/[\s,;]+/))
+        .map((k) => String(k).trim().toUpperCase()).filter(Boolean);
+      out[n] = [...new Set([...(out[n] || []), ...list])];
+    }
+    state.settings.projectGroups = out;
+    if (state.projectGroup && !out[state.projectGroup]) state.projectGroup = '';
+    changed();
+  };
+  const setProjectGroup = (i, name, keys) => { const rows = projectRows(); rows[i] = [name, keys]; setProjectRows(rows); };
+  const addProjectGroup = () => { const n = projectRows().length + 1; setProjectRows([...projectRows(), [`Group ${n}`, []]]); };
+  const removeProjectGroup = (i) => { setProjectRows(projectRows().filter((_, k) => k !== i)); };
 
   const setGroup = (key, group) => {
     state.settings.projectGroups = withProjectGroup(state.settings.projectGroups, key, group);
@@ -106,7 +158,7 @@ export function createSettingsStore(app) {
   // Jira mode: who is ticked. Until someone ticks by hand, the people the
   // team's filter names — or, without a filter, the whole roster.
   const defaultPicked = () => {
-    const named = emailsIn(state.settings.jql);
+    const named = defaultPeopleOf(state.settings);
     const inRoster = state.settings.roster.filter((e) => named.includes(e));
     return inRoster.length ? inRoster : [...state.settings.roster];
   };
@@ -149,7 +201,8 @@ export function createSettingsStore(app) {
 
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
-    replaceSettingsText, saveSettingsFile, saveJql, setGroup, hasSettings,
+    replaceSettingsText, saveSettingsFile, setGroup, hasSettings,
+    setDefaultPerson, setPersonGroup, removePerson, setDomain, addDomain, removeDomain, setProjectGroup, addProjectGroup, removeProjectGroup,
     pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts, rememberSite
   };
 }

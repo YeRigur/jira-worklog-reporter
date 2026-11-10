@@ -9,7 +9,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const lower = (s) => String(s || '').trim().toLowerCase();
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
-export const emptySettings = () => ({ version: 1, jql: '', site: '', projectGroups: {}, groupByDomain: {}, roster: [], teams: {}, people: {}, sites: {}, accounts: {} });
+export const emptySettings = () => ({ version: 1, jql: '', site: '', projectGroups: {}, groupByDomain: {}, roster: [], teams: {}, people: {}, sites: {}, accounts: {}, defaultPeople: [] });
 
 // What the export needs from scripts.json, and not one address.
 export function publicScriptsJson(scriptsJson) {
@@ -64,6 +64,8 @@ function normalize(raw) {
       skipped: Array.isArray(v.skipped) ? v.skipped.map(String) : []
     };
   }
+  // The people ticked at first on the export page.
+  s.defaultPeople = [...new Set((Array.isArray(raw.defaultPeople) ? raw.defaultPeople : []).map(lower).filter((e) => EMAIL.test(e)))];
   // Email → Jira accountId, found by the page through the bridge.
   for (const [email, id] of Object.entries(isObject(raw.accounts) ? raw.accounts : {})) {
     if (EMAIL.test(lower(email)) && typeof id === 'string' && id.trim()) s.accounts[lower(email)] = id.trim();
@@ -91,7 +93,8 @@ export function mergeSettings(a, b) {
     teams: { ...a.teams, ...b.teams },
     people: { ...a.people, ...b.people },
     sites: { ...a.sites, ...b.sites },
-    accounts: { ...(a.accounts || {}), ...(b.accounts || {}) }
+    accounts: { ...(a.accounts || {}), ...(b.accounts || {}) },
+    defaultPeople: b.defaultPeople?.length ? b.defaultPeople : (a.defaultPeople || [])
   };
 }
 
@@ -117,3 +120,7 @@ export function settingsFileName(site) {
   const name = String(site || '').trim().toLowerCase().replace(/\.atlassian\.net$/, '').replace(/[^a-z0-9.-]+/g, '-');
   return name ? `worklogs-settings-${name}.json` : 'worklogs-settings.json';
 }
+
+// Who is ticked at first: the list kept in the file, or — in an older file —
+// the people its team filter (JQL) names.
+export const defaultPeopleOf = (settings) => (settings.defaultPeople?.length ? [...settings.defaultPeople] : emailsIn(settings.jql || ''));

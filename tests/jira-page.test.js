@@ -218,3 +218,36 @@ test('a new settings file leaves nothing of the old one — from any page', asyn
   }
   hook.state.page = 'main';
 });
+
+test('the Settings form edits the file without JQL', async () => {
+  await hook.load([file('worklogs-settings-acme.json', JSON.stringify({
+    site: 'acme.atlassian.net', roster: [A.email, B.email, C.email], jql: `worklogAuthor in ("${A.email}")`,
+    groupByDomain: { 'ua.example.com': 'Team UA' }, projectGroups: { 'Group A': ['AC'] }
+  }), 'application/json')]);
+  hook.state.page = 'settings';
+  hook.render();
+  assert.doesNotMatch(root.textContent, /JQL|worklogAuthor/);
+  for (const s of ['Jira site', 'People · 3', 'Groups by email domain', 'Project groups']) assert.ok(root.textContent.includes(s), s);
+  assert.deepEqual(hook.app.pickedEmails(), [A.email], 'an older file’s JQL still decides who is ticked');
+
+  hook.app.setDefaultPerson(B.email, true);
+  assert.deepEqual(hook.state.settings.defaultPeople, [A.email, B.email]);
+  assert.equal(hook.state.settings.jql, '', 'the JQL is gone once the form decides');
+  assert.deepEqual(hook.app.pickedEmails(), [A.email, B.email]);
+
+  hook.app.setPersonGroup(C.email, 'Team X');
+  assert.equal(hook.state.settings.teams[C.email].group, 'Team X');
+  hook.app.setDomain(0, 'ua.example.com', 'Team Y');
+  assert.deepEqual(hook.state.settings.groupByDomain, { 'ua.example.com': 'Team Y' });
+  hook.app.setProjectGroup(0, 'Group A', 'ac, tu  vc');
+  assert.deepEqual(hook.state.settings.projectGroups, { 'Group A': ['AC', 'TU', 'VC'] });
+  hook.app.addProjectGroup();
+  assert.equal(Object.keys(hook.state.settings.projectGroups).length, 2);
+  hook.app.removeProjectGroup(1);
+  hook.app.removePerson(B.email);
+  assert.deepEqual(hook.state.settings.roster, [A.email, C.email]);
+  assert.deepEqual(hook.state.settings.defaultPeople, [A.email]);
+  assert.doesNotThrow(() => hook.render());
+  hook.state.page = 'main';
+  hook.render();
+});

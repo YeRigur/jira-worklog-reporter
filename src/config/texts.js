@@ -59,8 +59,13 @@ export const hints = {
   preview: 'The first rows of each sheet, as in the Excel.',
   groups: 'A name for each project to group by; projects can share one. Kept in the settings file.',
   groupsElsewhere: (list) => `In the settings, not in this export: ${list}`,
-  settings: 'Team data lives here, not in the page. Save the file to share it.',
-  settingsKeep: 'Save the settings file to keep it.'
+  settings: 'Changes apply at once. Save the file to keep them or share them.',
+  settingsSite: 'The Jira the export reads.',
+  settingsPeople: 'Ticked: in the report at first. Group: set by hand, else by the email’s domain.',
+  settingsDomains: 'People without a group by hand get the group of their email’s domain.',
+  settingsProjects: 'Project keys, separated by commas. The export can be limited to one group.',
+  settingsKept: (accounts, sites) => `Also kept: ${accounts} · columns picked for ${sites}.`,
+  settingsNoPeople: 'Nobody yet — add an email below.'
 };
 
 export const messages = {
@@ -87,8 +92,6 @@ export const messages = {
   switched: (name, people, site) => `Switched to “${name}”: ${people}${site ? ` on ${site}` : ''}.`,
   unreadable: (name, why) => `“${name}”: ${why}`,
   savedSettings: (name) => `Saved ${name} to Downloads. Share it with your team only.`,
-  filterSaved: (added) => (added ? `Filter saved; ${added} joined the roster.` : 'Filter saved.'),
-  filterCleared: 'Filter cleared — the whole roster is ticked at first.',
   emailAdded: (email) => `Added ${email}. Save the settings file to keep it.`,
 
   // The export's own errors, reworded

@@ -284,3 +284,26 @@ button.twz__go:hover .twz__label { text-decoration: underline; }
   .twz__line { min-width: 6px; }
   .twz__period .tjv__dates { flex: 1 1 100%; }
 }
+
+/* Settings as a plain form */
+.tset__grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.tset__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.tset { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.tset__head { display: flex; flex-direction: column; gap: 2px; }
+.tset__head b { font-size: 14px; }
+.tset > input { width: 100%; box-sizing: border-box; }
+.tset__list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+.tset__row { display: grid; align-items: center; gap: 8px; min-width: 0; }
+.tset__row--person { grid-template-columns: 16px minmax(0, 1.4fr) minmax(0, 1fr) 28px; }
+.tset__row--pair { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1.2fr) 28px; }
+.tset__row input[type="text"] { min-width: 0; width: 100%; box-sizing: border-box; }
+.tset__email { font-size: 13px; overflow-wrap: anywhere; }
+.tset__arrow { color: var(--text-3); text-align: center; }
+.tset__remove { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--text-3); cursor: pointer; }
+.tset__remove:hover { border-color: var(--danger-line); color: var(--danger-text); background: var(--danger-soft); }
+.tset__add { display: flex; gap: 8px; }
+.tset__add input { flex: 1; min-width: 0; }
+.tset > .tlinkbtn { align-self: flex-start; }
+@media (max-width: 900px) {
+  .tset__grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -54,10 +54,12 @@ The page itself contains no names or emails. All team data lives in
 - the Jira site,
 - the Jira accounts found for the emails (filled in by the page),
 - team groups and project groups,
-- the team's filter (JQL) — the people it names are ticked at first,
+- who is ticked at first (`defaultPeople`; an older file's JQL filter still works),
 - columns you mapped by hand, per Jira site.
 
-Save it with *Settings → Save settings file* and share it only with your team.
+Edit it on the *Settings* page — a plain form: the site, the people (group,
+ticked at first), groups by email domain, project groups. Save it with *Save
+settings file* and share it only with your team.
 **Never put it in this repository** (`.gitignore` already blocks it).
 
 ## Try it without real data
