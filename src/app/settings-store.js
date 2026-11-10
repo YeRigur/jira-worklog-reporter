@@ -2,7 +2,7 @@
 // filter, the accounts found in Jira, project groups, and per site the columns
 // attached by hand and the ones gone without. Kept on this computer once
 // loaded; saved back as a file to pass on.
-import { emptySettings, parseSettings, mergeSettings, emailsIn, settingsFileName } from '../core/settings.js';
+import { emptySettings, parseSettings, emailsIn, settingsFileName } from '../core/settings.js';
 import { withProjectGroup } from '../core/project-groups.js';
 import { plural, cleanSite } from '../core/format.js';
 import { downloadFile } from '../ui/dom.js';
@@ -44,22 +44,13 @@ export function createSettingsStore(app) {
   // Per-site choices follow the site: read again when the site becomes known.
   const reloadSiteChoices = () => { loadBindings(); loadSkipped(); };
 
-  // A settings file adds to what this computer already keeps.
-  const applySettings = (incoming, note) => {
-    state.settings = mergeSettings(state.settings, incoming);
-    keepSettings();
-    reloadSiteChoices();
-    state.settingsNote = { ok: true, text: note };
-    state.result = null;
-  };
-
   const keepName = (name) => {
     state.settingsName = String(name || '');
     try { app.storage.setItem(NAME_KEY, state.settingsName); } catch { /* not kept */ }
   };
 
-  // Another team's file on the start screen: it takes the place of the one
-  // kept here — people, site and ticks start over from it.
+  // A settings file takes the place of the one kept here — always: people,
+  // site, ticks, columns and whatever the last run read from Jira start over.
   const replaceSettingsText = (name, text) => {
     try {
       const s = parseSettings(text);
@@ -73,6 +64,8 @@ export function createSettingsStore(app) {
       Object.assign(state, { preview: null, previewing: null, result: null, savedSig: '', savedAs: '' });
       state.jira = freshJira();
       state.projectGroup = '';
+      Object.assign(state, { wizStep: 0, openGroups: [], progress: '', progressPct: 0, page: state.page === 'settings' ? 'settings' : 'main' });
+      app.jira?.reset();
       reloadSiteChoices();
       state.settingsNote = { ok: true, text: messages.switched(name, plural(s.roster.length, 'person', 'people'), s.site) };
     } catch (e) {
@@ -80,15 +73,6 @@ export function createSettingsStore(app) {
     }
   };
 
-  const loadSettingsText = (name, text) => {
-    try {
-      const s = parseSettings(text);
-      keepName(name);
-      applySettings(s, messages.loaded(name, `${plural(s.roster.length, 'person', 'people')}, ${plural(Object.values(s.projectGroups || {}).flat().length, 'mapped project')}`));
-    } catch (e) {
-      state.settingsNote = { ok: false, text: messages.unreadable(name, e.message) };
-    }
-  };
 
   const saveSettingsFile = () => {
     const blob = new Blob([`${JSON.stringify(state.settings, null, 2)}\n`], { type: 'application/json' });
@@ -165,7 +149,7 @@ export function createSettingsStore(app) {
 
   return {
     keepSettings, loadBindings, saveBindings, loadSkipped, skip, unskip, reloadSiteChoices,
-    applySettings, loadSettingsText, replaceSettingsText, saveSettingsFile, saveJql, setGroup, hasSettings,
+    replaceSettingsText, saveSettingsFile, saveJql, setGroup, hasSettings,
     pickedEmails, savePicked, pickPeople, addRosterEmail, rememberAccounts, rememberSite
   };
 }

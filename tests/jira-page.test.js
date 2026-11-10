@@ -200,3 +200,21 @@ test('a Jira field picked on the columns page is kept for the site, and used', a
   hook.state.page = 'main';
   hook.render();
 });
+
+test('a new settings file leaves nothing of the old one — from any page', async () => {
+  await hook.load([file('worklogs-settings-one.json', JSON.stringify({ site: 'acme.atlassian.net', roster: [A.email, B.email], projectGroups: { 'Group A': ['AC'] } }), 'application/json')]);
+  await hook.jira.start();
+  assert.ok(hook.jira.columnsContext(), 'the first run got as far as the columns');
+  for (const page of ['settings', 'main']) {
+    hook.state.page = page;
+    await hook.load([file('worklogs-settings-two.json', JSON.stringify({ site: 'other.atlassian.net', roster: [A.email] }), 'application/json')]);
+    assert.deepEqual(hook.state.settings.roster, [A.email], `${page}: only the new file’s people`);
+    assert.deepEqual(hook.state.settings.projectGroups, {}, `${page}: no groups of the old file`);
+    assert.equal(hook.jira.site(), 'other.atlassian.net');
+    assert.equal(hook.jira.columnsContext(), null, `${page}: no columns of the old Jira`);
+    assert.deepEqual(hook.jira.projects().projects, [], `${page}: no projects of the old Jira`);
+    assert.equal(hook.state.jira.phase, 'idle');
+    assert.equal(hook.state.preview, null);
+  }
+  hook.state.page = 'main';
+});

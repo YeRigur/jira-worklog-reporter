@@ -27,6 +27,6 @@ export function settingsPage(app) {
     settingsNote(),
     actions(
       h('button', { class: 'tdl', onclick: app.saveSettingsFile }, icon('download', 16), 'Save settings file'),
-      h('button', { class: 'tbtn', title: hints.settingsAdd, onclick: app.chooseSettings }, 'Add a settings file'),
+      h('button', { class: 'tbtn', title: hints.switchFile, onclick: app.switchSettings }, icon('upload', 14), 'Switch file'),
       h('button', { class: 'tbtn', onclick: () => go('main') }, 'Back'))];
 }

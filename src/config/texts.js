@@ -60,8 +60,7 @@ export const hints = {
   groups: 'A name for each project to group by; projects can share one. Kept in the settings file.',
   groupsElsewhere: (list) => `In the settings, not in this export: ${list}`,
   settings: 'Team data lives here, not in the page. Save the file to share it.',
-  settingsKeep: 'Save the settings file to keep it.',
-  settingsAdd: 'Add another file to these settings'
+  settingsKeep: 'Save the settings file to keep it.'
 };
 
 export const messages = {
@@ -86,7 +85,6 @@ export const messages = {
   // The settings file
   dropSettings: 'Drop a settings file (.json) here.',
   switched: (name, people, site) => `Switched to “${name}”: ${people}${site ? ` on ${site}` : ''}.`,
-  loaded: (name, summary) => `Loaded “${name}”: ${summary}.`,
   unreadable: (name, why) => `“${name}”: ${why}`,
   savedSettings: (name) => `Saved ${name} to Downloads. Share it with your team only.`,
   filterSaved: (added) => (added ? `Filter saved; ${added} joined the roster.` : 'Filter saved.'),

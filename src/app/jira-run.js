@@ -222,6 +222,14 @@ export function createJiraRun(app) {
 
   const projects = () => projectsFromSearch(cache.entries());
   const setConnect = (fn) => { connect = fn; bridge = null; bridgeSite = ''; };
+  // Another settings file: forget what the last run read from Jira.
+  const reset = () => {
+    cache.clear();
+    cacheKey = '';
+    fields = null;
+    found = null;
+    sample = [];
+  };
 
-  return { start, build, groupReport, ensurePreview, download, signature, projects, site, setConnect, columnsContext };
+  return { start, build, groupReport, ensurePreview, download, signature, projects, site, setConnect, columnsContext, reset };
 }

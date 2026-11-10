@@ -73,18 +73,15 @@ export function createConverter(app) {
 
   // ---------- the settings file ----------
 
-  // Dropped or picked: on the start screen a settings file takes the place of
-  // the one kept; the Settings page adds to it (a second team's groups).
+  // Dropped or picked, a settings file takes the place of the one kept.
   async function load(files) {
     const json = files.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json');
-    const apply = state.page === 'settings' ? app.loadSettingsText : app.replaceSettingsText;
-    for (const f of json) apply(f.name, await f.text());
+    for (const f of json) app.replaceSettingsText(f.name, await f.text());
     if (!json.length && files.length) state.settingsNote = { ok: false, text: messages.dropSettings };
     app.render();
   }
 
-  const chooseSettings = async () => load(await pickFiles('.json,application/json'));
-  // The start screen's button: always a replacement, one file.
+  // Picking one file: it replaces the settings.
   const switchSettings = async () => {
     const [f] = await pickFiles('.json,application/json');
     if (!f) return;
@@ -95,5 +92,5 @@ export function createConverter(app) {
   // Columns that reached the file with nothing in them.
   const emptyNow = () => (state.preview?.ok ? emptyColumns(state.preview.sheets) : []);
 
-  return { siteOf, withSummary, runOnce, previewWith, load, chooseSettings, switchSettings, emptyNow };
+  return { siteOf, withSummary, runOnce, previewWith, load, switchSettings, emptyNow };
 }
